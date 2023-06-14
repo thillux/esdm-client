@@ -1,0 +1,14 @@
+{
+    "nixpkgs": {
+        "branch": "orichter",
+        "description": "Nix Packages collection",
+        "homepage": "",
+        "owner": "thillux",
+        "repo": "nixpkgs",
+        "rev": "abaf021885f0ed1b315dc3f8ca58921edecf0c6b",
+        "sha256": "1jy5927j9604bpxc7bql9bc6115d0m9lybq4j0fjz1cfyc9czbyv",
+        "type": "tarball",
+        "url": "https://github.com/thillux/nixpkgs/archive/abaf021885f0ed1b315dc3f8ca58921edecf0c6b.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    }
+}
