@@ -1,14 +1,14 @@
 {
     "nixpkgs": {
-        "branch": "orichter",
-        "description": "Nix Packages collection",
+        "branch": "esdm-upstream",
+        "description": "Nix Packages collection & NixOS",
         "homepage": "",
-        "owner": "thillux",
+        "owner": "OrichterSec",
         "repo": "nixpkgs",
-        "rev": "abaf021885f0ed1b315dc3f8ca58921edecf0c6b",
-        "sha256": "1jy5927j9604bpxc7bql9bc6115d0m9lybq4j0fjz1cfyc9czbyv",
+        "rev": "1056a436207eb3824df23eb835d758509280c186",
+        "sha256": "0ghqn9bwjf8yn0sn9wqrgnfs4d6zdp94f17k1qr2qqz9zz59dqf7",
         "type": "tarball",
-        "url": "https://github.com/thillux/nixpkgs/archive/abaf021885f0ed1b315dc3f8ca58921edecf0c6b.tar.gz",
+        "url": "https://github.com/OrichterSec/nixpkgs/archive/1056a436207eb3824df23eb835d758509280c186.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }
