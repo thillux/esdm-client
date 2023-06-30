@@ -38,6 +38,23 @@ void testPrivRand() {
   esdm_rpcc_fini_priv_service();
 }
 
+void testStatus() {
+   esdm_rpcc_init_unpriv_service(NULL);
+
+  ssize_t ret = 0;
+
+  std::array<char, 8192> buffer;
+  esdm_invoke(
+      esdm_rpcc_status(buffer.data(), buffer.size()));
+
+  if(ret == 0) {
+    std::string statusStr(buffer.data());
+    std::cout << statusStr << std::endl;
+  }
+  
+  esdm_rpcc_fini_unpriv_service();
+}
+
 void testSeed() {
    esdm_rpcc_init_unpriv_service(NULL);
 
@@ -48,14 +65,16 @@ void testSeed() {
       esdm_rpcc_get_seed(reinterpret_cast<uint8_t*>(randBytes.data()), randBytes.size() * sizeof(uint64_t), 0));
   std::cout << "Ret: " << ret << std::endl;
 
-  std::cout << "returned buffer size: " << randBytes[0] << std::endl;
-  std::cout << "returned collected bits: " << randBytes[1] << std::endl;
+  if(ret > 2 * sizeof(uint64_t)) {
+    std::cout << "returned buffer size: " << randBytes[0] << std::endl;
+    std::cout << "returned collected bits: " << randBytes[1] << std::endl;
 
-  std::cout << "0x";
-  for (size_t i = 2; i < randBytes[0]; ++i) {
-    std::cout << boost::format("%02x") % static_cast<int>(reinterpret_cast<uint8_t*>(&randBytes[0])[i]);
+    std::cout << "0x";
+    for (size_t i = 2; i < randBytes[0]; ++i) {
+      std::cout << boost::format("%02x") % static_cast<int>(reinterpret_cast<uint8_t*>(&randBytes[0])[i]);
+    }
+    std::cout << std::endl;
   }
-  std::cout << std::endl;
 
   esdm_rpcc_fini_unpriv_service();
 }
@@ -65,9 +84,10 @@ int main(void) {
 
   esdm_rpcc_set_max_online_nodes(1);
   
+  testStatus();
   //testPrivRand();
-  //testSeed();
-  testUnprivRand();
+  testSeed();
+  //testUnprivRand();
 
   return 0;
 }
