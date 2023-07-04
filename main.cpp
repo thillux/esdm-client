@@ -6,6 +6,7 @@
 #include <esdm/esdm_rpc_client.h>
 #include <iostream>
 #include <sys/types.h>
+#include <chrono>
 
 void testUnprivRand() {
   ssize_t ret = 0;
@@ -56,6 +57,7 @@ void testStatus() {
 }
 
 void testSeed() {
+  std::cout << "test\n";
    esdm_rpcc_init_unpriv_service(NULL);
 
   ssize_t ret = 0;
@@ -79,15 +81,39 @@ void testSeed() {
   esdm_rpcc_fini_unpriv_service();
 }
 
-int main(void) {
-  std::cout << "ESDM Client" << std::endl;
+void getRandomNumbers(int requestSize = 32){
+  int ret = 0;
+  const size_t returnSize = requestSize;
+  std::array<uint8_t, 32> randBytes;
+  //maybe esdm_rpcc_get_random_bytes_pr
+  esdm_invoke(esdm_rpcc_get_random_bytes_full(randBytes.data(), (int)(randBytes.size()) * sizeof(uint8_t)));
+  std::cout << "0x";
+  for (size_t i = 0; i < randBytes.size(); ++i) {
+    std::cout << boost::format("%02x") % static_cast<int>(randBytes[i]);
+  }
+  std::cout << std::endl;
+  esdm_rpcc_fini_unpriv_service();
 
-  esdm_rpcc_set_max_online_nodes(1);
+}
+
+void benchmark(){
+  size_t requests = 10;
+  const int requestSize = 32;
+  std::chrono::time_point<std::chrono::system_clock> start = std::chrono::high_resolution_clock::now();
+  for (size_t i = 0; i < requests; i++)
+  {
+    getRandomNumbers(requestSize);
+  }
+  std::chrono::time_point<std::chrono::system_clock> end = std::chrono::high_resolution_clock::now();
   
-  testStatus();
-  //testPrivRand();
-  testSeed();
-  //testUnprivRand();
+  auto duration = end - start;
+  std::chrono::milliseconds m = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+  std::cout << "duration:" << m.count() << "\n";
+}
 
+int main(void) {
+  // testSeed();
+  // getRandomNumbers();
+  benchmark();
   return 0;
 }
