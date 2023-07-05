@@ -10,8 +10,8 @@ project(
   version: '0.1'
 )
 
-esdm_rpc_client = dependency('esdm_rpc_client')
-boost_dep = dependency('boost', modules : ['thread', 'utility'])
+esdm_rpc_client_dep = dependency('esdm_rpc_client')
+boost_dep = dependency('boost', modules : ['program_options'])
 
 src = [
   'main.cpp'

@@ -9,4 +9,8 @@ in pkgs.stdenv.mkDerivation {
   nativeBuildInputs = with pkgs; [ meson ninja pkgconfig cmake ];
   name = "esdm-client";
   src = ./.;
+
+  # https://github.com/NixOS/nixpkgs/issues/86131
+  BOOST_INCLUDEDIR = "${pkgs.lib.getDev pkgs.boost}/include";
+  BOOST_LIBRARYDIR = "${pkgs.lib.getLib pkgs.boost}/lib";
 }
