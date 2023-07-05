@@ -5,7 +5,8 @@ project(
     'c_std=c11',
     'cpp_std=c++17',
     'werror=true',
-    'warning_level=2'
+    'warning_level=2',
+    'optimization=3'
   ],
   version: '0.1'
 )
