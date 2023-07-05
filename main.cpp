@@ -7,6 +7,11 @@
 #include <iostream>
 #include <sys/types.h>
 #include <chrono>
+#include <vector>
+
+#ifndef OUTPUTNAME
+#define OUTPUTNAME "esdm-client.benchmark"
+#endif
 
 void testUnprivRand() {
   ssize_t ret = 0;
@@ -82,38 +87,62 @@ void testSeed() {
 }
 
 void getRandomNumbers(int requestSize = 32){
-  int ret = 0;
-  const size_t returnSize = requestSize;
-  std::array<uint8_t, 32> randBytes;
-  //maybe esdm_rpcc_get_random_bytes_pr
-  esdm_invoke(esdm_rpcc_get_random_bytes_full(randBytes.data(), (int)(randBytes.size()) * sizeof(uint8_t)));
-  std::cout << "0x";
-  for (size_t i = 0; i < randBytes.size(); ++i) {
-    std::cout << boost::format("%02x") % static_cast<int>(randBytes[i]);
+  size_t ret = 0;
+  std::vector<uint8_t> randBytes;
+  randBytes.resize(requestSize);
+  esdm_invoke(esdm_rpcc_get_random_bytes_pr(randBytes.data(), randBytes.size()));
+  
+  //todo: remove print before actual using this in benchmarking!
+  std::cout << "retValue:" << ret << "\n";
+  if(ret > 0){
+    std::cout << "0x";
+    for (size_t i = 0; i < randBytes.size(); ++i) {
+      std::cout << boost::format("%02x") % static_cast<int>(randBytes[i]);
+    }
   }
-  std::cout << std::endl;
-  esdm_rpcc_fini_unpriv_service();
-
+  assert(ret > 0);
 }
 
-void benchmark(){
-  size_t requests = 10;
-  const int requestSize = 32;
+int64_t benchmark(size_t req = 1, int reqSize = 32){
+  esdm_rpcc_init_unpriv_service(NULL);
+  size_t requests = req;
+  int requestsSize = reqSize;
   std::chrono::time_point<std::chrono::system_clock> start = std::chrono::high_resolution_clock::now();
   for (size_t i = 0; i < requests; i++)
   {
-    getRandomNumbers(requestSize);
+    getRandomNumbers(requestsSize);
   }
   std::chrono::time_point<std::chrono::system_clock> end = std::chrono::high_resolution_clock::now();
   
   auto duration = end - start;
   std::chrono::milliseconds m = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+
   std::cout << "duration:" << m.count() << "\n";
+  esdm_rpcc_fini_unpriv_service();
+  return m.count();
 }
 
-int main(void) {
+//argv[1]:: outputname
+int main(int argc, char* argv[]) {
+  testUnprivRand();
   // testSeed();
   // getRandomNumbers();
-  benchmark();
+  std::cout << "test\n";
+  int64_t dur = benchmark();
+  char* outname = OUTPUTNAME;
+  size_t req = 1;
+  if(argc==2){
+    outname = argv[1];
+  }
+  
+  std::cout << "outname:" << outname << "\n"; 
+  FILE* f = fopen(outname, "w");
+  if(!f){
+    std::cout << "Could not open output file.\n";
+    return -1;
+  }
+
+  fprintf(f, "duration:\t%d", dur);
+  fclose(f);
   return 0;
 }
