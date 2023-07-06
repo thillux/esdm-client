@@ -13,8 +13,6 @@
 #include <sys/types.h>
 #include <vector>
 
-#include "helper.hpp"
-
 enum benchmarkType { pr, me, ts, noType };
 
 using ms = std::chrono::milliseconds;
