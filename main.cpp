@@ -1,20 +1,24 @@
+#include <esdm/esdm_rpc_client.h>
+#include <sys/types.h>
+
 #include <array>
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
 #include <cassert>
 #include <chrono>
-#include <cstdint>
-#include <cstring>
-#include <esdm/esdm_rpc_client.h>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <sys/types.h>
 #include <vector>
-#include <optional>
 
-enum class benchmarkType { timeGetRandom, meassureEntropy, testTimeToSeed, noType };
+enum class benchmarkType {
+	timeGetRandom,
+	meassureEntropy,
+	testTimeToSeed,
+	noType
+};
 
 using ms = std::chrono::milliseconds;
 using us = std::chrono::microseconds;
@@ -49,10 +53,10 @@ void testPrivRand() {
 
 	std::array<uint8_t, 32> randBytes;
 	std::cout << "Warning: this is cyclic entropy feeding for testing purposes "
-				"and should never be done in production!"
-			<< std::endl;
+				 "and should never be done in production!"
+			  << std::endl;
 	esdm_invoke(esdm_rpcc_rnd_add_entropy(randBytes.data(), randBytes.size(),
-										randBytes.size() * 8));
+										  randBytes.size() * 8));
 	assert(ret == 0);
 
 	esdm_rpcc_fini_priv_service();
@@ -81,8 +85,9 @@ void testSeed() {
 	size_t ret = 0;
 
 	std::array<uint64_t, 1024 / sizeof(uint64_t)> randBytes;
-	esdm_invoke(esdm_rpcc_get_seed(reinterpret_cast<uint8_t *>(randBytes.data()),
-									randBytes.size() * sizeof(uint64_t), 0));
+	esdm_invoke(
+		esdm_rpcc_get_seed(reinterpret_cast<uint8_t *>(randBytes.data()),
+						   randBytes.size() * sizeof(uint64_t), 0));
 	std::cout << "Ret: " << ret << std::endl;
 
 	if (ret > 2 * sizeof(uint64_t)) {
@@ -91,9 +96,9 @@ void testSeed() {
 
 		std::cout << "0x";
 		for (size_t i = 2; i < randBytes[0]; ++i) {
-		std::cout << boost::format("%02x") %
-						static_cast<int>(
-							reinterpret_cast<uint8_t *>(&randBytes[0])[i]);
+			std::cout << boost::format("%02x") %
+							 static_cast<int>(
+								 reinterpret_cast<uint8_t *>(&randBytes[0])[i]);
 		}
 		std::cout << std::endl;
 	}
@@ -112,7 +117,8 @@ void getRandomNumbers(std::vector<std::pair<size_t, std::string>> &returnVec,
 	std::string returnString;
 	returnString.append("0x");
 	for (size_t i = 0; i < randBytes.size(); ++i) {
-		returnString.append(str(boost::format("%02x") % static_cast<int>(randBytes[i])));
+		returnString.append(
+			str(boost::format("%02x") % static_cast<int>(randBytes[i])));
 	}
 	returnVec.push_back(std::make_pair(ret, returnString));
 }
@@ -122,16 +128,17 @@ void getRandomNumbers(const int requestSize = 32, const bool coutOn = false) {
 	std::vector<uint8_t> randBytes;
 	randBytes.resize(requestSize);
 	esdm_invoke(
-			esdm_rpcc_get_random_bytes_pr(randBytes.data(), randBytes.size()));
+		esdm_rpcc_get_random_bytes_pr(randBytes.data(), randBytes.size()));
 	assert(ret > 0);
 
 	// todo: remove print before actual using this in benchmarking!
 	if (coutOn) {
-	std::cout << "retValue:" << ret << "\n";
+		std::cout << "retValue:" << ret << "\n";
 		if (ret > 0) {
 			std::cout << "0x";
 			for (size_t i = 0; i < randBytes.size(); ++i) {
-				std::cout << boost::format("%02x") % static_cast<int>(randBytes[i]);
+				std::cout << boost::format("%02x") %
+								 static_cast<int>(randBytes[i]);
 			}
 			std::cout << "\n";
 		}
@@ -140,16 +147,17 @@ void getRandomNumbers(const int requestSize = 32, const bool coutOn = false) {
 
 // todo: save the output of the getRandomNumbers call and log to file? -> use
 // if(v != nullptr)
-int64_t benchmarkGetRandom(std::vector<std::pair<size_t, std::string>> &returnVec,
-						bool saveRandomOutput = false, const size_t requests = 1, const int requestSize = 32) {
+int64_t
+benchmarkGetRandom(std::vector<std::pair<size_t, std::string>> &returnVec,
+				   bool saveRandomOutput = false, const size_t requests = 1,
+				   const int requestSize = 32) {
 	esdm_rpcc_init_unpriv_service(NULL);
 	std::chrono::time_point<std::chrono::system_clock> start = Clock::now();
 	int round = 0;
-	for (size_t i = 0; i < requests; i++)
-	{
+	for (size_t i = 0; i < requests; i++) {
 		if (saveRandomOutput) {
 			getRandomNumbers(returnVec, requestSize);
-		}else
+		} else
 			getRandomNumbers(requestSize);
 		round++;
 	}
@@ -163,7 +171,9 @@ int64_t benchmarkGetRandom(std::vector<std::pair<size_t, std::string>> &returnVe
 }
 
 // todo
-void benchmarkMeassureEntropy(meassureEntropyOutput &returnVec, const long observationTime = -1, const long deltaMs = -1) {
+void benchmarkMeassureEntropy(meassureEntropyOutput &returnVec,
+							  const long observationTime = -1,
+							  const long deltaMs = -1) {
 	// todo:
 	//-do a call OR wait? -> maybe call external programm get_raw_entropy with
 	// system()
@@ -183,7 +193,8 @@ void benchmarkMeassureEntropy(meassureEntropyOutput &returnVec, const long obser
 	ns delta;
 	if (useDelta)
 		delta = std::chrono::duration_cast<ns>(us(deltaMs));
-	std::chrono::time_point<std::chrono::system_clock, ns> deltaTimePoint = Clock::now();
+	std::chrono::time_point<std::chrono::system_clock, ns> deltaTimePoint =
+		Clock::now();
 
 	// save start date as the first tuple in our retVec: (startTime, -1)
 	int64_t startNano = start.time_since_epoch().count();
@@ -193,15 +204,16 @@ void benchmarkMeassureEntropy(meassureEntropyOutput &returnVec, const long obser
 	//-> the loop will repeat till the esdm status says it is fully seeded
 	while (!fullySeeded || (duration < maxDuration)) {
 		deltaTimePoint = Clock::now();
-		if (std::chrono::duration_cast<ns>(deltaTimePoint - now) < delta && !firstLoop &&
-			useDelta) {
+		if (std::chrono::duration_cast<ns>(deltaTimePoint - now) < delta &&
+			!firstLoop && useDelta) {
 			continue;
 		}
 		now = Clock::now();
 
 		/*
-			todo: maybe call a function here to manipulate the entropy level, if
-			possible. (like reset, decrease the entropy) maybe get_raw_entropy?
+				todo: maybe call a function here to manipulate the entropy
+		   level, if possible. (like reset, decrease the entropy) maybe
+		   get_raw_entropy?
 		*/
 
 		// unsigned int entCnt;
@@ -217,7 +229,8 @@ void benchmarkMeassureEntropy(meassureEntropyOutput &returnVec, const long obser
 		// get the current entropy level through string parsing
 		char searchEntropyLevel[] = "entropy level: ";
 		char *bufferPointer = strstr(buffer, searchEntropyLevel);
-		char *entropyLevelCstr = std::strtok(bufferPointer, "\n") + strlen(searchEntropyLevel);
+		char *entropyLevelCstr =
+			std::strtok(bufferPointer, "\n") + strlen(searchEntropyLevel);
 		int entropyLevel = atoi(entropyLevelCstr);
 		int64_t nowNano = now.time_since_epoch().count();
 
@@ -244,21 +257,21 @@ int64_t timeTillSeeded() {
 	bool fullySeeded = false;
 	bool firstLoop = true;
 
-
 	std::array<uint8_t, 64> randomOutputBuffer;
-	esdm_invoke(esdm_rpcc_get_random_bytes_pr(randomOutputBuffer.data(), randomOutputBuffer.size()));
+	esdm_invoke(esdm_rpcc_get_random_bytes_pr(randomOutputBuffer.data(),
+											  randomOutputBuffer.size()));
 
 	while (!fullySeeded) {
-	esdm_invoke(esdm_rpcc_status(buffer, sizeof(buffer)));
-	char searchFullySeeded[] = "ESDM fully seeded: true";
-	fullySeeded = strstr(buffer, searchFullySeeded) != NULL ? true : false;
+		esdm_invoke(esdm_rpcc_status(buffer, sizeof(buffer)));
+		char searchFullySeeded[] = "ESDM fully seeded: true";
+		fullySeeded = strstr(buffer, searchFullySeeded) != NULL ? true : false;
 		if (fullySeeded && firstLoop) {
 			firstLoop = false;
 			break;
 		}
-	std::memset(buffer, 0, sizeof(buffer));
-	if (fullySeeded)
-		end = Clock::now();
+		std::memset(buffer, 0, sizeof(buffer));
+		if (fullySeeded)
+			end = Clock::now();
 	}
 
 	ns duration = end - start;
@@ -267,24 +280,29 @@ int64_t timeTillSeeded() {
 	return duration.count();
 }
 
-int start_getRandom(const std::vector<std::string> &optionVec, const std::string outputFileName,
-				const bool saveRandomOutput = false) {
+int start_getRandom(const std::vector<std::string> &optionVec,
+					const std::string outputFileName,
+					const bool saveRandomOutput = false) {
 	// execute 'timeGetRandom' benchmark
 	int64_t outputDuration = 0;
 	if (optionVec.size() > 3) {
-		std::cout << "to many arguments for the timeGetRandom benchmark\n. Expected at most 3 "
-					"Arguments:\n"
-				<< "(0) type: 'timeGetRandom'\n"
-				<< "(1) requests\n"
-				<< "(2) requestSize\n";
+		std::cout << "to many arguments for the timeGetRandom benchmark\n. "
+					 "Expected at most 3 "
+					 "Arguments:\n"
+				  << "(0) type: 'timeGetRandom'\n"
+				  << "(1) requests\n"
+				  << "(2) requestSize\n";
 		return -1;
 	}
 
 	std::vector<std::pair<size_t, std::string>> retVec;
 	if (optionVec.size() == 3) {
-		outputDuration = benchmarkGetRandom(retVec, saveRandomOutput, std::stoi(optionVec[1]), std::stoi(optionVec[2]));
+		outputDuration = benchmarkGetRandom(retVec, saveRandomOutput,
+											std::stoi(optionVec[1]),
+											std::stoi(optionVec[2]));
 	} else if (optionVec.size() == 2) {
-		outputDuration = benchmarkGetRandom(retVec, saveRandomOutput, std::stoi(optionVec[1]));
+		outputDuration = benchmarkGetRandom(retVec, saveRandomOutput,
+											std::stoi(optionVec[1]));
 	} else {
 		outputDuration = benchmarkGetRandom(retVec, saveRandomOutput);
 	}
@@ -303,20 +321,25 @@ int start_getRandom(const std::vector<std::string> &optionVec, const std::string
 	return 0;
 }
 
-int start_meassureEntropy(const std::vector<std::string> &optionVec, std::string outputFileName) {
+int start_meassureEntropy(const std::vector<std::string> &optionVec,
+						  std::string outputFileName) {
 	// execute 'meassureEntropy' benchmark
 	meassureEntropyOutput output;
 	if (optionVec.size() > 3) {
 		std::cout
-			<< "to many arguments for the meassureEntropy benchmark\n. Expected at most 3 "
-			"Arguments:\n"
+			<< "to many arguments for the meassureEntropy benchmark\n. "
+			   "Expected at "
+			   "most 3 "
+			   "Arguments:\n"
 			<< "(0) type: 'meassureEntropy'\n"
-			<< "(1) duration: check the entropy level for 'duration' milliseconds\n"
+			<< "(1) duration: check the entropy level for 'duration' "
+			   "milliseconds\n"
 			<< "(2) delta: if set only check after 'delta' microseconds have "
-			"passed\n";
+			   "passed\n";
 		return -1;
 	} else if (optionVec.size() == 3) {
-		benchmarkMeassureEntropy(output, std::stoi(optionVec[1]), std::stoi(optionVec[2]));
+		benchmarkMeassureEntropy(output, std::stoi(optionVec[1]),
+								 std::stoi(optionVec[2]));
 	} else if (optionVec.size() == 2) {
 		benchmarkMeassureEntropy(output, std::stoi(optionVec[1]));
 	} else if (optionVec.size() == 1) {
@@ -335,13 +358,15 @@ int start_meassureEntropy(const std::vector<std::string> &optionVec, std::string
 	return 0;
 }
 
-int start_timeToSeed(const std::vector<std::string> &optionVec, std::string outputFileName) {
+int start_timeToSeed(const std::vector<std::string> &optionVec,
+					 std::string outputFileName) {
 	int64_t outputTimeToSeed;
 	// execute 'testTimeToSeed' benchmark
 	if (optionVec.size() > 1) {
-		std::cout << "to many arguments for the meassureEntropy benchmark\n. Expected at most 1 "
-					"Argument:\n"
-				<< "(0) type: 'testTimeToSeed'\n";
+		std::cout << "to many arguments for the meassureEntropy benchmark\n. "
+					 "Expected at most 1 "
+					 "Argument:\n"
+				  << "(0) type: 'testTimeToSeed'\n";
 	} else if (optionVec.size() == 1) {
 		outputTimeToSeed = timeTillSeeded();
 	}
@@ -358,7 +383,7 @@ int start_timeToSeed(const std::vector<std::string> &optionVec, std::string outp
 }
 
 int call_benchmark(const std::vector<std::string> &optionVec,
-					const boost::program_options::variables_map &vm) {
+				   const boost::program_options::variables_map &vm) {
 	std::cout << "vector.size():" << optionVec.size() << "\n";
 
 	bool saveOutput = vm["save"].as<bool>();
@@ -366,15 +391,21 @@ int call_benchmark(const std::vector<std::string> &optionVec,
 	if (optionVec.size() == 0) {
 		std::cout
 			<< "please specify a benchmark to run:\n"
-			<< "'timeGetRandom(requests,requestSize)':\tCall esdm_rpcc_get_random_bytes_pr\n"
+			<< "'timeGetRandom(requests,requestSize)':\tCall "
+			   "esdm_rpcc_get_random_bytes_pr\n"
 			<< "\t requests:\tNumber of times the function is called\n"
 			<< "\t requestSize:\tAmount of requested random bytes\n"
-			<< "'meassureEntropy(observationTime,deltaMs)':\t Read the entropy status of the esdm\n"
-			<< "\t observationTime:\tFor how long the entropy status is meassured (default: "
-			"until fully seeded)\n"
+			<< "'meassureEntropy(observationTime,deltaMs)':\t Read the entropy "
+			   "status of the esdm\n"
+			<< "\t observationTime:\tFor how long the entropy status is "
+			   "meassured "
+			   "(default: "
+			   "until fully seeded)\n"
 			<< "\t deltaMs:\tOnly read the entropy status after 'deltaMs' "
-			"milliseconds (default: 0) have passed since the last observationTime\n"
-			<< "'testTimeToSeed()':\tMeassure the time till esdm is fully seeded\n";
+			   "milliseconds (default: 0) have passed since the last "
+			   "observationTime\n"
+			<< "'testTimeToSeed()':\tMeassure the time till esdm is fully "
+			   "seeded\n";
 		return -1;
 	}
 
@@ -401,25 +432,26 @@ int call_benchmark(const std::vector<std::string> &optionVec,
 		std::cout << "Create output directory:" << outputDir << "\n";
 	}
 	for (int i = 0; i < repetitions; i++) {
-		std::string outputFileName =
-			outputDir + typeStr + "." + std::to_string(i) + "." + vm["outputFile"].as<std::string>();
+		std::string outputFileName = outputDir + typeStr + "." +
+									 std::to_string(i) + "." +
+									 vm["outputFile"].as<std::string>();
 		std::cout << outputFileName << "\n";
 		switch (type) {
 		case benchmarkType::timeGetRandom:
-		start_getRandom(optionVec, outputFileName, saveOutput);
-		break;
+			start_getRandom(optionVec, outputFileName, saveOutput);
+			break;
 
 		case benchmarkType::meassureEntropy:
-		start_meassureEntropy(optionVec, outputFileName);
-		break;
+			start_meassureEntropy(optionVec, outputFileName);
+			break;
 
 		case benchmarkType::testTimeToSeed:
-		start_timeToSeed(optionVec, outputFileName);
-		break;
+			start_timeToSeed(optionVec, outputFileName);
+			break;
 
 		default:
-		std::cout << "Unknown benchmark name:" << typeStr << "\n";
-		break;
+			std::cout << "Unknown benchmark name:" << typeStr << "\n";
+			break;
 		}
 	}
 
@@ -435,8 +467,8 @@ void call_test(const std::string testName) {
 		testStatus();
 	} else if (testName == "testSeed") {
 		testSeed();
-		// }else if(testName == "getSeed"){ //todo: just a test remove this block
-		// later
+		// }else if(testName == "getSeed"){ //todo: just a test remove this
+		// block later
 		//   std::vector<std::pair<size_t,std::string>> v;
 		//   getSeed(v);
 	} else {
@@ -453,7 +485,7 @@ int main(int argc, char *argv[]) {
 	std::string test;
 	std::string outputFile;
 	std::string outputDir;
-	//todo optional
+	// todo optional
 	try {
 		// clang-format off
 		po::options_description desc{"Options"};
@@ -481,9 +513,9 @@ int main(int argc, char *argv[]) {
 		else if (vm.count("t"))
 			call_test(vm["t"].as<std::string>());
 
-		} catch (const po::	error &ex) {
-			std::cerr << ex.what() << '\n';
-		}
+	} catch (const po::error &ex) {
+		std::cerr << ex.what() << '\n';
+	}
 
 	return EXIT_SUCCESS;
 }
