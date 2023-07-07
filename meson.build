@@ -4,9 +4,10 @@ project(
   default_options: [
     'c_std=c11',
     'cpp_std=c++17',
-    'werror=true',
+    'werror=false',
     'warning_level=2',
-    'optimization=3'
+    'optimization=0',
+    'b_sanitize=address,undefined'
   ],
   version: '0.1'
 )
