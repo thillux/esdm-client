@@ -59,51 +59,50 @@ void testPrivRand() {
 }
 
 void testStatus() {
-  esdm_rpcc_init_unpriv_service(NULL);
+	esdm_rpcc_init_unpriv_service(NULL);
 
-  ssize_t ret = 0;
+	ssize_t ret = 0;
 
-  std::array<char, 8192> buffer;
-  esdm_invoke(esdm_rpcc_status(buffer.data(), buffer.size()));
+	std::array<char, 8192> buffer;
+	esdm_invoke(esdm_rpcc_status(buffer.data(), buffer.size()));
 
-  if (ret == 0) {
-	std::string statusStr(buffer.data());
-	std::cout << statusStr << std::endl;
-  }
+	if (ret == 0) {
+		std::string statusStr(buffer.data());
+		std::cout << statusStr << std::endl;
+	}
 
-  esdm_rpcc_fini_unpriv_service();
+	esdm_rpcc_fini_unpriv_service();
 }
 
 void testSeed() {
-  std::cout << "test\n";
-  esdm_rpcc_init_unpriv_service(NULL);
+	std::cout << "test\n";
+	esdm_rpcc_init_unpriv_service(NULL);
 
-  size_t ret = 0;
+	size_t ret = 0;
 
-  std::array<uint64_t, 1024 / sizeof(uint64_t)> randBytes;
-  esdm_invoke(esdm_rpcc_get_seed(reinterpret_cast<uint8_t *>(randBytes.data()),
-								 randBytes.size() * sizeof(uint64_t), 0));
-  std::cout << "Ret: " << ret << std::endl;
+	std::array<uint64_t, 1024 / sizeof(uint64_t)> randBytes;
+	esdm_invoke(esdm_rpcc_get_seed(reinterpret_cast<uint8_t *>(randBytes.data()),
+									randBytes.size() * sizeof(uint64_t), 0));
+	std::cout << "Ret: " << ret << std::endl;
 
-  if (ret > 2 * sizeof(uint64_t)) {
-	std::cout << "returned buffer size: " << randBytes[0] << std::endl;
-	std::cout << "returned collected bits: " << randBytes[1] << std::endl;
+	if (ret > 2 * sizeof(uint64_t)) {
+		std::cout << "returned buffer size: " << randBytes[0] << std::endl;
+		std::cout << "returned collected bits: " << randBytes[1] << std::endl;
 
-	std::cout << "0x";
-	for (size_t i = 2; i < randBytes[0]; ++i) {
-	  std::cout << boost::format("%02x") %
-					   static_cast<int>(
-						   reinterpret_cast<uint8_t *>(&randBytes[0])[i]);
+		std::cout << "0x";
+		for (size_t i = 2; i < randBytes[0]; ++i) {
+		std::cout << boost::format("%02x") %
+						static_cast<int>(
+							reinterpret_cast<uint8_t *>(&randBytes[0])[i]);
+		}
+		std::cout << std::endl;
 	}
-	std::cout << std::endl;
-  }
 
-  esdm_rpcc_fini_unpriv_service();
+	esdm_rpcc_fini_unpriv_service();
 }
 
-void getRandomNumbers(std::vector<std::pair<size_t, std::string>> &v,
+void getRandomNumbers(std::vector<std::pair<size_t, std::string>> &returnVec,
 					  const int requestSize = 32) {
-	esdm_rpcc_init_unpriv_service(NULL);
 	size_t ret = 0;
 	std::vector<uint8_t> randBytes;
 	randBytes.resize(requestSize);
@@ -115,20 +114,19 @@ void getRandomNumbers(std::vector<std::pair<size_t, std::string>> &v,
 	for (size_t i = 0; i < randBytes.size(); ++i) {
 		returnString.append(str(boost::format("%02x") % static_cast<int>(randBytes[i])));
 	}
-	v.push_back(std::make_pair(ret, returnString));
-	esdm_rpcc_fini_unpriv_service();
+	returnVec.push_back(std::make_pair(ret, returnString));
 }
 
 void getRandomNumbers(const int requestSize = 32, const bool coutOn = false) {
-  size_t ret = 0;
-  std::vector<uint8_t> randBytes;
-  randBytes.resize(requestSize);
-  esdm_invoke(
-		esdm_rpcc_get_random_bytes_pr(randBytes.data(), randBytes.size()));
-  assert(ret > 0);
+	size_t ret = 0;
+	std::vector<uint8_t> randBytes;
+	randBytes.resize(requestSize);
+	esdm_invoke(
+			esdm_rpcc_get_random_bytes_pr(randBytes.data(), randBytes.size()));
+	assert(ret > 0);
 
-  // todo: remove print before actual using this in benchmarking!
-  	if (coutOn) {
+	// todo: remove print before actual using this in benchmarking!
+	if (coutOn) {
 	std::cout << "retValue:" << ret << "\n";
 		if (ret > 0) {
 			std::cout << "0x";
@@ -142,27 +140,26 @@ void getRandomNumbers(const int requestSize = 32, const bool coutOn = false) {
 
 // todo: save the output of the getRandomNumbers call and log to file? -> use
 // if(v != nullptr)
-int64_t benchmarkGetRandom(std::vector<std::pair<size_t, std::string>> *returnVec = nullptr,
-					const size_t req = 1, const int requestSize = 32) {
-  esdm_rpcc_init_unpriv_service(NULL);
-  std::cout << "t\n";
-  std::chrono::time_point<std::chrono::system_clock> start = Clock::now();
-  std::cout << "t2\n";
-  for (size_t i = 0; i < req; i++) {
-	std::cout << "t3\n"; //todo segfault
-	if (returnVec != nullptr) {
-		std::cout << "test2\n";
-		getRandomNumbers(*returnVec, requestSize);
-	}else
-		getRandomNumbers(requestSize);
-  }
-  std::chrono::time_point<std::chrono::system_clock> end = Clock::now();
+int64_t benchmarkGetRandom(std::vector<std::pair<size_t, std::string>> &returnVec,
+						bool saveRandomOutput = false, const size_t requests = 1, const int requestSize = 32) {
+	esdm_rpcc_init_unpriv_service(NULL);
+	std::chrono::time_point<std::chrono::system_clock> start = Clock::now();
+	int round = 0;
+	for (size_t i = 0; i < requests; i++)
+	{
+		if (saveRandomOutput) {
+			getRandomNumbers(returnVec, requestSize);
+		}else
+			getRandomNumbers(requestSize);
+		round++;
+	}
+	std::chrono::time_point<std::chrono::system_clock> end = Clock::now();
 
-  auto duration = end - start;
-  ns durationNs = std::chrono::duration_cast<ns>(duration);
+	auto duration = end - start;
+	ns durationNs = std::chrono::duration_cast<ns>(duration);
 
-  esdm_rpcc_fini_unpriv_service();
-  return durationNs.count();
+	esdm_rpcc_fini_unpriv_service();
+	return durationNs.count();
 }
 
 // todo
@@ -255,10 +252,10 @@ int64_t timeTillSeeded() {
 	esdm_invoke(esdm_rpcc_status(buffer, sizeof(buffer)));
 	char searchFullySeeded[] = "ESDM fully seeded: true";
 	fullySeeded = strstr(buffer, searchFullySeeded) != NULL ? true : false;
-	if (fullySeeded && firstLoop) {
-		firstLoop = false;
-		break;
-	}
+		if (fullySeeded && firstLoop) {
+			firstLoop = false;
+			break;
+		}
 	std::memset(buffer, 0, sizeof(buffer));
 	if (fullySeeded)
 		end = Clock::now();
@@ -284,15 +281,12 @@ int start_getRandom(const std::vector<std::string> &optionVec, const std::string
 	}
 
 	std::vector<std::pair<size_t, std::string>> retVec;
-	std::vector<std::pair<size_t, std::string>> *returnVecPointer =
-		saveRandomOutput ? &retVec : NULL;
 	if (optionVec.size() == 3) {
-		outputDuration = benchmarkGetRandom(returnVecPointer, std::stoi(optionVec[1]), std::stoi(optionVec[2]));
+		outputDuration = benchmarkGetRandom(retVec, saveRandomOutput, std::stoi(optionVec[1]), std::stoi(optionVec[2]));
 	} else if (optionVec.size() == 2) {
-		std::cout << "test\n";
-		outputDuration = benchmarkGetRandom(returnVecPointer, std::stoi(optionVec[1]));
+		outputDuration = benchmarkGetRandom(retVec, saveRandomOutput, std::stoi(optionVec[1]));
 	} else {
-		outputDuration = benchmarkGetRandom(returnVecPointer);
+		outputDuration = benchmarkGetRandom(retVec, saveRandomOutput);
 	}
 	// save result
 	FILE *f = fopen(outputFileName.c_str(), "w");
@@ -300,9 +294,8 @@ int start_getRandom(const std::vector<std::string> &optionVec, const std::string
 		std::cout << "Could not open output file.\n";
 		return -1;
 	}
-	fprintf(f, "benchmark timeGetRandom called with: requests:%d requestSize:%d\n",
-			std::stoi(optionVec[1]), std::stoi(optionVec[2]));
 	fprintf(f, "duration:\t%lu\n", outputDuration);
+
 	for (auto i : retVec) {
 		fprintf(f, "%lu\t%s\n", i.first, i.second.c_str());
 	}
@@ -358,18 +351,17 @@ int start_timeToSeed(const std::vector<std::string> &optionVec, std::string outp
 		std::cout << "Could not open output file.\n";
 		return -1;
 	}
-	fprintf(f, "%lu\n", outputTimeToSeed);
-	fclose(f);
-	return 0;
+	int ret = 0;
+	ret = fprintf(f, "%lu\n", outputTimeToSeed);
+	assert(ret > 0);
+	return fclose(f);
 }
 
 int call_benchmark(const std::vector<std::string> &optionVec,
 					const boost::program_options::variables_map &vm) {
 	std::cout << "vector.size():" << optionVec.size() << "\n";
 
-	bool saveOutput = false;
-	if (vm.count("save"))
-		saveOutput = vm["save"].as<bool>();
+	bool saveOutput = vm["save"].as<bool>();
 
 	if (optionVec.size() == 0) {
 		std::cout
