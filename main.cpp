@@ -426,7 +426,7 @@ bool callBenchmark(const std::vector<std::string>& optionVec,
 
 	bool successfullExecution = true;
 	bool saveOutput = vm["save"].as<bool>();
-	int repetitions = vm["r"].as<int>();
+	int repetitions = vm["repetitions"].as<int>();
 	assert(repetitions > 0);
 	for (int i = 0; i < repetitions; i++) {
 		std::string outputFileName = outputDir + typeStr + "." +
@@ -487,6 +487,8 @@ int main(int argc, char* argv[]) {
 	std::string test;
 	std::string outputFile;
 	std::string outputDir;
+	bool save;
+
 	try {
 		// clang-format off
 		po::options_description desc{"Options"};
@@ -498,7 +500,7 @@ int main(int argc, char* argv[]) {
 			("status,S", po::bool_switch(&showStatus)->default_value(false), "show ESDM status")
 			("outputFile,o", po::value<std::string>(&outputFile)->default_value("data.bench"), "Suffix of output file. Name of output: 'benchmarkType'.'repetition'.'suffix'")
 			("outputDir,d", po::value<std::string>(&outputDir)->default_value("./res/"), "Result directory")
-			("save,s", po::value<bool>()->default_value(false), "Save output of the rpc calls made by benchmark: timeGetRandom")
+			("save,s", po::bool_switch(&save)->default_value(false), "Save output of the rpc calls made by benchmark: timeGetRandom")
 		;
 		// clang-format on
 
@@ -512,10 +514,10 @@ int main(int argc, char* argv[]) {
 
 		if (help) {
 			std::cout << desc << '\n';
-		} else if (vm.count("b")) {
-			exit = callBenchmark(vm["b"].as<std::vector<std::string>>(), vm);
-		} else if (vm.count("t")) {
-			exit = callTest(vm["t"].as<std::string>());
+		} else if (vm.count("benchmark")) {
+			exit = callBenchmark(benchmarkOptions, vm);
+		} else if (vm.count("test")) {
+			exit = callTest(test);
 		} else if(showStatus) {
 			testStatus();
 			exit = true;
