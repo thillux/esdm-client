@@ -481,6 +481,7 @@ int main(int argc, char* argv[]) {
 	namespace po = boost::program_options;
 
 	bool help;
+	bool showStatus;
 	std::vector<std::string> benchmarkOptions;
 	int repetitions;
 	std::string test;
@@ -491,12 +492,13 @@ int main(int argc, char* argv[]) {
 		po::options_description desc{"Options"};
 		desc.add_options()
 			("help,h", po::bool_switch(&help)->default_value(false), "Help screen")
-			("b,benchmark", po::value<std::vector<std::string>>(&benchmarkOptions)->multitoken()->zero_tokens()->composing(), "Benchmark")
-			("r,repetitions", po::value<int>(&repetitions)->default_value(1), "Repetitions of choosen benchmark")
-			("t,test", po::value<std::string>(&test), "call test functions")
-			("outputFile", po::value<std::string>(&outputFile)->default_value("data.bench"), "Suffix of output file. Name of output: 'benchmarkType'.'repetition'.'suffix'")
-			("outputDir", po::value<std::string>(&outputDir)->default_value("./res/"), "Result directory")
-			("save", po::value<bool>()->default_value(false), "Save output of the rpc calls made by benchmark: timeGetRandom")
+			("benchmark,b", po::value<std::vector<std::string>>(&benchmarkOptions)->multitoken()->zero_tokens()->composing(), "Benchmark")
+			("repetitions,r", po::value<int>(&repetitions)->default_value(1), "Repetitions of choosen benchmark")
+			("test,t", po::value<std::string>(&test), "call test functions")
+			("status,S", po::bool_switch(&showStatus)->default_value(false), "show ESDM status")
+			("outputFile,o", po::value<std::string>(&outputFile)->default_value("data.bench"), "Suffix of output file. Name of output: 'benchmarkType'.'repetition'.'suffix'")
+			("outputDir,d", po::value<std::string>(&outputDir)->default_value("./res/"), "Result directory")
+			("save,s", po::value<bool>()->default_value(false), "Save output of the rpc calls made by benchmark: timeGetRandom")
 		;
 		// clang-format on
 
@@ -508,13 +510,16 @@ int main(int argc, char* argv[]) {
 
 		bool exit = false;
 
-		if (help)
+		if (help) {
 			std::cout << desc << '\n';
-		else if (vm.count("b"))
+		} else if (vm.count("b")) {
 			exit = callBenchmark(vm["b"].as<std::vector<std::string>>(), vm);
-		else if (vm.count("t"))
+		} else if (vm.count("t")) {
 			exit = callTest(vm["t"].as<std::string>());
-		else {
+		} else if(showStatus) {
+			testStatus();
+			exit = true;
+		} else {
 			std::cout << desc << '\n';
 			exit = false;
 		}
