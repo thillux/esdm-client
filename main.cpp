@@ -6,12 +6,13 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <json/json.h>
 #include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
 
-enum class benchmarkType { timeGetRandom, measureEntropy, timeToSeed, noType };
+#include "writer.hpp"
 
 using ms = std::chrono::milliseconds;
 using us = std::chrono::microseconds;
@@ -162,6 +163,8 @@ void benchmarkMeasureEntropy(measureEntropyOutput& returnVec,
 	int64_t startNano = start.time_since_epoch().count();
 	returnVec.push_back(std::make_pair(startNano, -1));
 
+	// esdm_invoke(esdm_rpcc_rnd_clear_pool());
+
 	// if observationTime is set to the default 0 then duration == maxDuration
 	//-> the loop will repeat till the esdm status says it is fully seeded
 	while (!fullySeeded || (duration < maxDuration)) {
@@ -253,17 +256,16 @@ int64_t timeTillSeeded() {
 	return duration.count();
 }
 
-bool startTimeGetRandom(const std::vector<std::string>& optionVec,
-						const std::string outputFileName,
-						const bool saveRandomOutput = false) {
+// todo: rewrite 'save result' section to use json
+bool startTimeGetRandom(const std::string outputFileName, Config config) {
 	// execute 'timeGetRandom' benchmark
+	std::vector<std::string> parameters = config.getBenchmarkParameters();
+	bool saveRandomOutput = config.getSave();
 	int64_t outputDuration = 0;
-	assert(optionVec.size() >= 1);
-	if (optionVec.size() > 3) {
+	if (parameters.size() > 2) {
 		std::cout << "to many arguments for the timeGetRandom benchmark\n. "
-					 "Expected at most 3 "
+					 "Expected at most 2 "
 					 "Arguments:\n"
-				  << "(0) type: 'timeGetRandom'\n"
 				  << "(1) requests\n"
 				  << "(2) requestSize\n";
 		return false;
@@ -275,109 +277,165 @@ bool startTimeGetRandom(const std::vector<std::string>& optionVec,
 		retVec = std::nullopt;
 	}
 
-	if (optionVec.size() == 3) {
-		outputDuration = benchmarkTimeGetRandom(retVec, std::stoi(optionVec[1]),
-												std::stoi(optionVec[2]));
-	} else if (optionVec.size() == 2) {
+	if (parameters.size() == 2) {
+		std::cout << "testParametersOut:" << std::stoi(parameters[0]) << "|"
+				  << std::stoi(parameters[1]) << "\n";
+		outputDuration = benchmarkTimeGetRandom(
+			retVec, std::stoi(parameters[0]), std::stoi(parameters[1]));
+	} else if (parameters.size() == 1) {
 		outputDuration =
-			benchmarkTimeGetRandom(retVec, std::stoi(optionVec[1]));
+			benchmarkTimeGetRandom(retVec, std::stoi(parameters[0]));
 	} else {
 		outputDuration = benchmarkTimeGetRandom(retVec);
 	}
+
 	// save result
-	std::fstream outputFile{outputFileName, outputFile.out};
-	if (!outputFile.is_open()) {
-		std::cout << "Could not open output file.\n";
-		return false;
-	}
-	outputFile << "duration:\t" << outputDuration << "\n";
+	Json::Value data;
+	data["info"] = "Structure of entries in the field 'output':\n"
+				   "duration:total duration for all requests\n"
+				   "returnedValues: (numberOfReturnedBytes, returnedBytes)\n";
+	Json::Value durationEntry;
+	durationEntry["unit"] = "nanoseconds";
+	durationEntry["time"] = outputDuration;
+	data["duration"] = durationEntry;
 	for (auto i : *retVec) {
-		outputFile << i.first << "\t" << i.second << "\n";
+		Json::Value returnedValues;
+		returnedValues["numberOfReturnedBytes"] = i.first;
+		returnedValues["returnedBytes"] = i.second;
+		data["returnedValues"].append(returnedValues);
+		std::cout << "first:" << i.first << "|second:" << i.second << "\n";
 	}
-	outputFile.close();
-	if (outputFile.bad()) {
-		std::cout << "Error while writing to file:" << outputFileName << "\n";
-		return false;
-	}
-	return true;
+
+	Writer writer;
+	return writer.writeOutputFile(outputFileName, data, config);
+
+	// todo: remove after writer.hpp is finished
+	// std::fstream outputFile{outputFileName, outputFile.out};
+	// if (!outputFile.is_open()) {
+	// 	std::cout << "Could not open output file.\n";
+	// 	return false;
+	// }
+	// outputFile << "duration:\t" << outputDuration << "\n";
+	// for (auto i : *retVec) {
+	// 	outputFile << i.first << "\t" << i.second << "\n";
+	// }
+	// outputFile.close();
+	// if (outputFile.bad()) {
+	// 	std::cout << "Error while writing to file:" << outputFileName << "\n";
+	// 	return false;
+	// }
+	// return true;
 }
 
-bool startMeasureEntropy(const std::vector<std::string>& optionVec,
-						 std::string outputFileName) {
+bool startMeasureEntropy(const std::string outputFileName, Config config) {
 	// execute 'measureEntropy' benchmark
 	measureEntropyOutput output;
-	assert(optionVec.size() >= 1);
-	if (optionVec.size() > 3) {
+	std::vector<std::string> parameters = config.getBenchmarkParameters();
+	if (parameters.size() > 2) {
 		std::cout << "To many arguments for the measureEntropy benchmark.\n "
 					 "Expected at "
-					 "most 3 "
+					 "most 2 "
 					 "Arguments:\n"
-				  << "(0) type    : 'measureEntropy'\n"
 				  << "(1) duration: Check the entropy level for 'duration' "
 					 "milliseconds\n"
 				  << "(2) delta   : If set, only check after 'delta' "
 					 "microseconds have "
 					 "passed\n";
 		return -1;
-	} else if (optionVec.size() == 3) {
-		benchmarkMeasureEntropy(output, std::stoi(optionVec[1]),
-								std::stoi(optionVec[2]));
-	} else if (optionVec.size() == 2) {
-		benchmarkMeasureEntropy(output, std::stoi(optionVec[1]));
-	} else if (optionVec.size() == 1) {
+	} else if (parameters.size() == 2) {
+		benchmarkMeasureEntropy(output, std::stoi(parameters[0]),
+								std::stoi(parameters[1]));
+	} else if (parameters.size() == 1) {
+		benchmarkMeasureEntropy(output, std::stoi(parameters[0]));
+	} else if (parameters.size() == 0) {
 		benchmarkMeasureEntropy(output);
 	}
+
 	// save result
-	std::fstream outputFile{outputFileName, outputFile.out};
-	if (!outputFile.is_open()) {
-		std::cout << "Could not open output file.\n";
-		return false;
-	}
+	Json::Value data;
+	data["info"] = "Structure of entries in the field 'output':\n"
+				   "Start Time\n"
+				   "measurements: (timestamp, entropyLevel)\n";
+
+	Json::Value startTime;
+	startTime["unit"] = "nanoseconds";
+	assert(output.size() > 0);
+	if (output.size() > 0)
+		startTime["time"] = output.front().first;
+	output.erase(output.begin());
+	data["startTime"] = startTime;
+
 	for (auto i : output) {
-		outputFile << i.first << "\t" << i.second << "\n";
-		// fprintf(f, "%lu\t%d\n", i.first, i.second);
+		Json::Value entry;
+		entry["timestamp"] = i.first;
+		entry["entropyLevel"] = i.second;
+		data["measurements"].append(entry);
 	}
-	outputFile.close();
-	if (outputFile.bad()) {
-		std::cout << "Error while writing to file:" << outputFileName << "\n";
-		return false;
-	}
-	return true;
+
+	Writer writer;
+	return writer.writeOutputFile(outputFileName, data, config);
+
+	// std::fstream outputFile{outputFileName, outputFile.out};
+	// if (!outputFile.is_open()) {
+	// 	std::cout << "Could not open output file.\n";
+	// 	return false;
+	// }
+	// for (auto i : output) {
+	// 	outputFile << i.first << "\t" << i.second << "\n";
+	// 	// fprintf(f, "%lu\t%d\n", i.first, i.second);
+	// }
+	// outputFile.close();
+	// if (outputFile.bad()) {
+	// 	std::cout << "Error while writing to file:" << outputFileName << "\n";
+	// 	return false;
+	// }
+	// return true;
 }
 
-bool startTimeToSeed(const std::vector<std::string>& optionVec,
-					 std::string outputFileName) {
+bool startTimeToSeed(const std::string outputFileName, Config config) {
+	std::vector<std::string> parameters = config.getBenchmarkParameters();
 	int64_t outputTimeToSeed;
 	// execute 'timeToSeed' benchmark
-	assert(optionVec.size() >= 1);
-	if (optionVec.size() > 1) {
+	if (parameters.size() > 0) {
 		std::cout << "To many arguments for the measureEntropy benchmark.\n "
-					 "Expected at most 1 "
+					 "Expected 0 "
 					 "Argument:\n"
 				  << "(0) type: 'TimeToSeed'\n";
-	} else if (optionVec.size() == 1) {
+	} else if (parameters.size() == 0) {
 		outputTimeToSeed = timeTillSeeded();
 	}
 	// save result
-	std::fstream outputFile{outputFileName, outputFile.out};
-	if (!outputFile.is_open()) {
-		std::cout << "Could not open output file.\n";
-		return false;
-	}
-	outputFile << outputTimeToSeed << "\n";
-	outputFile.close();
-	if (outputFile.bad()) {
-		std::cout << "Error while writing to file:" << outputFileName << "\n";
-		return false;
-	}
-	return true;
+	Json::Value data;
+	data["info"] = "Structure of entries in the field 'output':\n"
+				   "Time until ESDM was Fully Seeded\n"
+				   "measurement: (timeUntilSeeded) \n";
+
+	data["measurement"]["unit"] = "nanoseconds";
+	data["measurement"]["time"] = outputTimeToSeed;
+
+	Writer writer;
+	return writer.writeOutputFile(outputFileName, data, config);
+
+	// 	std::fstream outputFile{outputFileName, outputFile.out};
+	// 	if (!outputFile.is_open()) {
+	// 		std::cout << "Could not open output file.\n";
+	// 		return false;
+	// 	}
+	// 	outputFile << outputTimeToSeed << "\n";
+	// 	outputFile.close();
+	// 	if (outputFile.bad()) {
+	// 		std::cout << "Error while writing to file:" << outputFileName <<
+	// "\n"; 		return false;
+	// 	}
+	// 	return true;
 }
 
-bool callBenchmark(const std::vector<std::string>& optionVec,
-				   const boost::program_options::variables_map& vm) {
-	std::cout << "vector.size():" << optionVec.size() << "\n";
+bool callBenchmark(Config config) {
+	std::cout << "vector.size():" << config.getBenchmarkParameters().size()
+			  << "\n";
 
-	if (optionVec.size() == 0) {
+	BenchmarkType type = config.getBenchmarkType();
+	if (config.getBenchmarkType() == BenchmarkType::noType) {
 		std::cout
 			<< "please specify a benchmark to run:\n"
 			<< "'timeGetRandom(requests,requestSize)':\tCall "
@@ -399,24 +457,9 @@ bool callBenchmark(const std::vector<std::string>& optionVec,
 		return false;
 	}
 
-	benchmarkType type = benchmarkType::noType;
-	std::string typeStr = optionVec[0];
-	if (typeStr == "timeGetRandom")
-		type = benchmarkType::timeGetRandom;
-	else if (typeStr == "measureEntropy")
-		type = benchmarkType::measureEntropy;
-	else if (typeStr == "timeToSeed")
-		type = benchmarkType::timeToSeed;
-
-	std::string outputDir = vm["outputDir"].as<std::string>();
-	bool mkdir;
-	mkdir = std::filesystem::create_directory(outputDir);
-	if (mkdir) {
-		std::cout << "Create output directory:" << outputDir << "\n";
-	}
-
-	if (type == benchmarkType::noType) {
-		std::cout << "Unknown benchmark name \"" << typeStr << "\"\n"
+	std::string typeStr = benchmarkTypeToString(type);
+	if (type == BenchmarkType::unkownType) {
+		std::cout << "Unknown benchmark name\n"
 				  << "Available benchmarks: \n"
 				  << "timeGetRandom\n"
 				  << "measureEntropy\n"
@@ -424,28 +467,32 @@ bool callBenchmark(const std::vector<std::string>& optionVec,
 		return false;
 	}
 
+	const std::string outputDir = config.getOutputDirName();
+	bool mkdir;
+	mkdir = std::filesystem::create_directory(outputDir);
+	if (mkdir) {
+		std::cout << "Create output directory:" << outputDir << "\n";
+	}
+
 	bool successfullExecution = true;
-	bool saveOutput = vm["save"].as<bool>();
-	int repetitions = vm["repetitions"].as<int>();
+	const int repetitions = config.getRepetitions();
 	assert(repetitions > 0);
 	for (int i = 0; i < repetitions; i++) {
 		std::string outputFileName = outputDir + typeStr + "." +
 									 std::to_string(i) + "." +
-									 vm["outputFile"].as<std::string>();
+									 config.getOutputFileName();
 		std::cout << outputFileName << "\n";
 		switch (type) {
-		case benchmarkType::timeGetRandom:
-			successfullExecution &=
-				startTimeGetRandom(optionVec, outputFileName, saveOutput);
+		case BenchmarkType::timeGetRandom:
+			successfullExecution &= startTimeGetRandom(outputFileName, config);
 			break;
 
-		case benchmarkType::measureEntropy:
-			successfullExecution &=
-				startMeasureEntropy(optionVec, outputFileName);
+		case BenchmarkType::measureEntropy:
+			successfullExecution &= startMeasureEntropy(outputFileName, config);
 			break;
 
-		case benchmarkType::timeToSeed:
-			successfullExecution &= startTimeToSeed(optionVec, outputFileName);
+		case BenchmarkType::timeToSeed:
+			successfullExecution &= startTimeToSeed(outputFileName, config);
 
 		default:
 			break;
@@ -455,26 +502,61 @@ bool callBenchmark(const std::vector<std::string>& optionVec,
 	return successfullExecution;
 }
 
+// todo all functions in rpcc client header
+
+void testGetEntCnt() {
+	esdm_rpcc_init_unpriv_service(NULL);
+	size_t ret = 0;
+	unsigned int entropyCount = 0;
+	// esdm_invoke(esdm_rpcc_rnd_get_ent_cnt(&entropyCount));
+	// std::cout << "ret1:" << ret << "\n";
+	esdm_invoke(esdm_rpcc_rnd_reseed_crng());
+	std::cout << "ret2:" << ret << "\n";
+	esdm_invoke(esdm_rpcc_rnd_clear_pool());
+	std::cout << "ret3:" << ret << "\n";
+	std::cout << "entropyCount:" << entropyCount << "\n";
+	esdm_rpcc_fini_unpriv_service();
+}
+
+void testJson() {
+	Json::Value test;
+	test["entry"] = "FirstEntry";
+
+	std::cout << "entry of test:" << test["entry"].asString() << "\n";
+}
+
 bool callTest(const std::string testName) {
-	if (testName == "testUnprivRand") {
+	TestType testType = stringToTestType(testName);
+	switch (testType) {
+	case TestType::testUnprivRand:
 		testUnprivRand();
-	} else if (testName == "testPrivRand") {
+		return true;
+	case TestType::testPrivRand:
 		testPrivRand();
-	} else if (testName == "testStatus") {
+		return true;
+	case TestType::testStatus:
 		testStatus();
-	} else if (testName == "testSeed") {
+		return true;
+	case TestType::testSeed:
 		testSeed();
-	} else if (testName == "h" || testName == "help") {
+		return true;
+	case TestType::testEntCnt:
+		testGetEntCnt();
+		return true;
+	case TestType::testJson:
+		testJson();
+		return true;
+	case TestType::noType:
 		std::cout << "Available test functions:\n"
 				  << "testUnprivRand : call esdm_rpcc_get_random_bytes_pr\n"
 				  << "testPrivRand   : call esdm_rpcc_rnd_add_entropy\n"
 				  << "testStatus     : call esdm_rpcc_status\n"
 				  << "testSeed       : call esdm_rpcc_get_seed\n";
-	} else {
-		std::cout << "unkown test with name:'" << testName << "' called\n";
-		return false;
+	default:
+		break;
 	}
-	return true;
+	std::cout << "unkown test with name:'" << testName << "' called\n";
+	return false;
 }
 
 int main(int argc, char* argv[]) {
@@ -497,7 +579,7 @@ int main(int argc, char* argv[]) {
 			("benchmark,b", po::value<std::vector<std::string>>(&benchmarkOptions)->multitoken()->zero_tokens()->composing(), "Benchmark")
 			("repetitions,r", po::value<int>(&repetitions)->default_value(1), "Repetitions of choosen benchmark")
 			("test,t", po::value<std::string>(&test), "call test functions")
-			("status,S", po::bool_switch(&showStatus)->default_value(false), "show ESDM status")
+			("Status,S", po::bool_switch(&showStatus)->default_value(false), "show ESDM status")
 			("outputFile,o", po::value<std::string>(&outputFile)->default_value("data.bench"), "Suffix of output file. Name of output: 'benchmarkType'.'repetition'.'suffix'")
 			("outputDir,d", po::value<std::string>(&outputDir)->default_value("./res/"), "Result directory")
 			("save,s", po::bool_switch(&save)->default_value(false), "Save output of the rpc calls made by benchmark: timeGetRandom")
@@ -508,17 +590,40 @@ int main(int argc, char* argv[]) {
 		po::store(po::parse_command_line(argc, argv, desc), vm);
 		po::notify(vm);
 
-		// size_t rep = vm["r"].as<size_t>();
+		FunctionType functionType;
+		BenchmarkType benchmarkType;
+		TestType testType;
+		std::vector<std::string> benchmarkParameters;
+		if (vm.count("benchmark")) {
+			functionType = FunctionType::benchmark;
+			testType = TestType::noType;
+			if (benchmarkOptions.size() > 0) {
+				benchmarkType = stringToBenchmarkType(benchmarkOptions[0]);
+				benchmarkParameters = benchmarkOptions;
+				benchmarkParameters.erase(benchmarkParameters.begin());
+			} else
+				benchmarkType = BenchmarkType::noType;
+		} else if (vm.count("test")) {
+			functionType = FunctionType::test;
+			benchmarkType = BenchmarkType::noType;
+			testType = stringToTestType(test);
+		}
 
-		bool exit = false;
+		// Config
+		// config(functionType,testType,benchmarkType,repetitions,outputFile,outputDir,help,showStatus,save);
+		Config config(functionType, testType, benchmarkType, repetitions,
+					  outputFile, outputDir, help, showStatus, save);
+		config.setBenchmarkParameters(benchmarkParameters);
+		config.printConfig();
 
+		bool exit = true;
 		if (help) {
 			std::cout << desc << '\n';
-		} else if (vm.count("benchmark")) {
-			exit = callBenchmark(benchmarkOptions, vm);
+		} else if (config.getFunctionType() == FunctionType::benchmark) {
+			exit = callBenchmark(config);
 		} else if (vm.count("test")) {
 			exit = callTest(test);
-		} else if(showStatus) {
+		} else if (showStatus) {
 			testStatus();
 			exit = true;
 		} else {

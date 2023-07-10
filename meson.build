@@ -14,6 +14,8 @@ project(
 
 esdm_rpc_client_dep = dependency('esdm_rpc_client')
 boost_dep = dependency('boost', modules : ['program_options'])
+json_dep = dependency('jsoncpp')
+#catch2_deb = dependency('catch2')
 
 src = [
   'main.cpp'
@@ -23,7 +25,8 @@ executable('esdm-client',
   src,
   dependencies: [
     esdm_rpc_client_dep,
-    boost_dep
+    boost_dep,
+    json_dep
   ],
   install: true
 )

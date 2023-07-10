@@ -5,7 +5,7 @@ let
   pkgs = import sources.nixpkgs { };
 in pkgs.stdenv.mkDerivation {
   hardeningDisable = [ "all" ];
-  buildInputs = with pkgs; [ esdm protobufc boost ];
+  buildInputs = with pkgs; [ esdm protobufc boost jsoncpp ];
   nativeBuildInputs = with pkgs; [ meson ninja pkgconfig cmake ];
   name = "esdm-client";
   src = ./.;

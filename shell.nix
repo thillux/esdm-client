@@ -4,7 +4,7 @@ let
   sources = import nix/sources.nix;
   pkgs = import sources.nixpkgs { };
 in pkgs.mkShell {
-  buildInputs = with pkgs; [ esdm protobufc boost ];
+  buildInputs = with pkgs; [ esdm protobufc boost jsoncpp ];
   nativeBuildInputs = with pkgs; [ meson ninja pkgconfig cmake ];
 
    # https://github.com/NixOS/nixpkgs/issues/86131
