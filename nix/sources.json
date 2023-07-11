@@ -5,10 +5,10 @@
         "homepage": "",
         "owner": "OrichterSec",
         "repo": "nixpkgs",
-        "rev": "1056a436207eb3824df23eb835d758509280c186",
-        "sha256": "0ghqn9bwjf8yn0sn9wqrgnfs4d6zdp94f17k1qr2qqz9zz59dqf7",
+        "rev": "25b131776ef0d569dc0b8da844c205ca891d4f00",
+        "sha256": "0xs54v2j1kmsjmmf2a0a0h4s5f7xa7nw537izvc10mf3v0b6g1zw",
         "type": "tarball",
-        "url": "https://github.com/OrichterSec/nixpkgs/archive/1056a436207eb3824df23eb835d758509280c186.tar.gz",
+        "url": "https://github.com/OrichterSec/nixpkgs/archive/25b131776ef0d569dc0b8da844c205ca891d4f00.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }

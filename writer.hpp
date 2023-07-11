@@ -26,6 +26,7 @@ enum class TestType {
 	testJson,
 	testEntCnt,
 	noType,
+	unknownType,
 };
 
 TestType stringToTestType(std::string testString) {
@@ -41,8 +42,10 @@ TestType stringToTestType(std::string testString) {
 		return TestType::testJson;
 	else if (testString == "testEntCnt")
 		return TestType::testEntCnt;
-	else
+	else if (testString == "" || testString == "noType")
 		return TestType::noType;
+	else
+		return TestType::unknownType;
 }
 
 std::string testTypeToString(TestType testType) {
@@ -58,8 +61,10 @@ std::string testTypeToString(TestType testType) {
 		return "testJson";
 	else if (testType == TestType::testEntCnt)
 		return "testEntCnt";
-	else
+	else if (testType == TestType::noType)
 		return "noType";
+	else
+		return " unknownType";
 }
 
 enum class BenchmarkType {
@@ -67,7 +72,7 @@ enum class BenchmarkType {
 	measureEntropy,
 	timeToSeed,
 	noType,
-	unkownType
+	unknownType
 };
 
 BenchmarkType stringToBenchmarkType(std::string benchmarkString) {
@@ -77,10 +82,10 @@ BenchmarkType stringToBenchmarkType(std::string benchmarkString) {
 		return BenchmarkType::measureEntropy;
 	else if (benchmarkString == "timeToSeed")
 		return BenchmarkType::timeToSeed;
-	else if (benchmarkString == "")
+	else if (benchmarkString == "" || benchmarkString == "noType")
 		return BenchmarkType::noType;
 	else
-		return BenchmarkType::unkownType;
+		return BenchmarkType::unknownType;
 }
 
 std::string benchmarkTypeToString(BenchmarkType benchmarkType) {
@@ -93,7 +98,7 @@ std::string benchmarkTypeToString(BenchmarkType benchmarkType) {
 	else if (benchmarkType == BenchmarkType::noType)
 		return "noType";
 	else
-		return "unkownType";
+		return "unknownType";
 }
 
 class Config {
@@ -108,32 +113,70 @@ class Config {
 	bool status; // print the status of esdm, and continue with other operations
 				 // (benchmark or test execution)
 	bool save; // save the output of the benchmark
+	std::string rawTestType;
+	std::string rawBenchmarkType;
+
   public:
 	Config(FunctionType functionType, TestType testType,
-		   BenchmarkType benchmarkType, int repetitions,
+		   BenchmarkType benchmarkType,
+		   std::vector<std::string> benchmarkParameters, int repetitions,
 		   std::string outputFileName, std::string outputDirName, bool help,
-		   bool status, bool save)
+		   bool status, bool save, std::string rawTestType = "",
+		   std::string rawBenchmarkType = "")
 		: functionType(functionType), testType(testType),
-		  benchmarkType(benchmarkType), repetitions(repetitions),
+		  benchmarkType(benchmarkType),
+		  benchmarkParameters(benchmarkParameters), repetitions(repetitions),
 		  outputFileName(outputFileName), outputDirName(outputDirName),
-		  help(help), status(status), save(save){};
-	void printConfig();
+		  help(help), status(status), save(save), rawTestType(rawTestType),
+		  rawBenchmarkType(rawBenchmarkType){};
+	void printConfig(bool printAll = false);
 	void printBenchmarkParameters();
+
+	// getters
 	FunctionType getFunctionType() { return functionType; };
 	TestType getTestType() { return testType; };
 	BenchmarkType getBenchmarkType() { return benchmarkType; };
 	std::vector<std::string> getBenchmarkParameters() {
 		return benchmarkParameters;
 	};
+	std::string getRawTestType() { return rawTestType; };
+	std::string getRawBenchmarkType() { return rawBenchmarkType; };
 	int getRepetitions() { return repetitions; };
 	std::string getOutputFileName() { return outputFileName; };
 	std::string getOutputDirName() { return outputDirName; };
 	bool getHelp() { return help; };
 	bool getStatus() { return status; };
 	bool getSave() { return save; };
-	void setBenchmarkParameters(const std::vector<std::string> parameters) {
-		benchmarkParameters = parameters;
+
+	// setters
+	void setFunctionType(const FunctionType type) {
+		this->functionType = type;
 	};
+	void setTestType(const TestType type) { this->testType = type; };
+	void setBenchmarkType(const BenchmarkType type) {
+		this->benchmarkType = type;
+	};
+	void setBenchmarkParameters(const std::vector<std::string> parameters) {
+		this->benchmarkParameters = parameters;
+	};
+	void setRawTestType(std::string typeString) {
+		this->rawTestType = typeString;
+	};
+	void setRawBenchmarkType(std::string typeString) {
+		this->rawBenchmarkType = typeString;
+	};
+	void setRepetitions(const int repetitions) {
+		this->repetitions = repetitions;
+	};
+	void setOutputFileName(const std::string fileName) {
+		this->outputFileName = fileName;
+	};
+	void setOutputDirName(const std::string dirName) {
+		this->outputDirName = dirName;
+	};
+	void setHelp(const bool help) { this->help = help; };
+	void setStatus(const bool status) { this->status = status; };
+	void setSave(const bool save) { this->save = save; };
 };
 
 void Config::printBenchmarkParameters() {
@@ -143,14 +186,18 @@ void Config::printBenchmarkParameters() {
 	std::cout << "\n";
 }
 
-void Config::printConfig() {
+void Config::printConfig(bool printAll) {
 	std::cout << "Configuration:\n"
 			  << "\tfunctiontype:\t" << functionTypeToString(this->functionType)
 			  << "\n"
-			  << "\ttestType:\t" << testTypeToString(this->testType) << "\n"
-			  << "\tbenchmarkType:\t"
-			  << benchmarkTypeToString(this->benchmarkType) << "\n"
-			  << "\tbenchmarkParameters:\t";
+			  << "\ttestType:\t" << testTypeToString(this->testType) << "\n";
+	if (printAll)
+		std::cout << "\trawTestType:\t" << this->rawTestType << "\n";
+	std::cout << "\tbenchmarkType:\t"
+			  << benchmarkTypeToString(this->benchmarkType) << "\n";
+	if (printAll)
+		std::cout << "\trawBenchmarkType:\t" << this->rawBenchmarkType << "\n";
+	std::cout << "\tbenchmarkParameters:\t";
 	printBenchmarkParameters();
 	std::cout << "\trepetitions:\t" << this->repetitions << "\n"
 			  << "\toutputFileName:\t" << this->outputFileName << "\n"
@@ -159,12 +206,6 @@ void Config::printConfig() {
 			  << "\tstatus:\t" << this->status << "\n"
 			  << "\tsave:\t" << this->save << "\n";
 };
-// inline FunctionType Config::getFunctionType() { return functionType; }
-// inline TestType Config::getTestType() { return testType; }
-// inline BenchmarkType Config::getBenchmarkType() { return benchmarkType; }
-// inline int Config::getRepetitions() { return repetitions; }
-// inline std::string Config::getOutputFileName() { return outputFileName; }
-// inline std::string Config::getOutputDirName() { return outputDirName; }
 
 class Writer {
   private:

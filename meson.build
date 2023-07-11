@@ -7,7 +7,8 @@ project(
     'werror=false',
     'warning_level=2',
     'optimization=0',
-    'b_sanitize=address,undefined'
+    'b_sanitize=address,undefined',
+    'b_coverage=true'
   ],
   version: '0.1'
 )
@@ -15,10 +16,12 @@ project(
 esdm_rpc_client_dep = dependency('esdm_rpc_client')
 boost_dep = dependency('boost', modules : ['program_options'])
 json_dep = dependency('jsoncpp')
-#catch2_deb = dependency('catch2')
+catch2_deb = dependency('catch2')
 
 src = [
   'main.cpp'
+#  'writer.hpp',
+#  'functions.hpp'
 ]
 
 executable('esdm-client',
@@ -26,7 +29,25 @@ executable('esdm-client',
   dependencies: [
     esdm_rpc_client_dep,
     boost_dep,
-    json_dep
+    json_dep,
+    catch2_deb
   ],
   install: true
 )
+
+testsrc = [
+  'unitTests.cpp'
+]
+
+catch = executable('esdm-test',
+  testsrc,
+  dependencies: [
+    esdm_rpc_client_dep,
+    boost_dep,
+    json_dep,
+    catch2_deb
+  ],
+  install: true
+)
+
+test('testMesonCoverage', catch, args : ['[config]'])
