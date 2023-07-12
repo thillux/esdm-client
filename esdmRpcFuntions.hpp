@@ -3,13 +3,66 @@
 #include <boost/format.hpp>
 #include <esdm/esdm_rpc_client.h>
 
-// todo implement functions from esdm_rpc_client.h
-void testUnprivRand() {
+// todo: possibility to set testFunction parameters through commandline
+void testRandBytes(size_t requestedNumberOfBytes = 32) {
+	size_t ret = 0;
+	esdm_rpcc_init_unpriv_service(NULL);
+	std::vector<uint8_t> randBytes;
+	randBytes.resize(requestedNumberOfBytes);
+	esdm_invoke(esdm_rpcc_get_random_bytes(randBytes.data(), randBytes.size()));
+	assert(ret == randBytes.size());
+	std::cout << "0x";
+	for (size_t i = 0; i < randBytes.size(); i++) {
+		std::cout << boost::format("%02x") % static_cast<int>(randBytes[i]);
+	}
+	std::cout << "\n";
+
+	esdm_rpcc_fini_unpriv_service();
+}
+
+void testRandBytesFull(size_t requestedNumberOfBytes = 32) {
+	size_t ret = 0;
+	esdm_rpcc_init_unpriv_service(NULL);
+	std::vector<uint8_t> randBytes;
+	randBytes.resize(requestedNumberOfBytes);
+	esdm_invoke(
+		esdm_rpcc_get_random_bytes_full(randBytes.data(), randBytes.size()));
+
+	assert(ret == randBytes.size());
+	std::cout << "0x";
+	for (size_t i = 0; i < randBytes.size(); i++) {
+		std::cout << boost::format("%02x") % static_cast<int>(randBytes[i]);
+	}
+	std::cout << "\n";
+
+	esdm_rpcc_fini_unpriv_service();
+}
+
+void testRandBytesMin(size_t requestedNumberOfBytes = 32) {
+	size_t ret = 0;
+	esdm_rpcc_init_unpriv_service(NULL);
+	std::vector<uint8_t> randBytes;
+	randBytes.resize(requestedNumberOfBytes);
+	esdm_invoke(
+		esdm_rpcc_get_random_bytes_min(randBytes.data(), randBytes.size()));
+
+	assert(ret == randBytes.size());
+	std::cout << "0x";
+	for (size_t i = 0; i < randBytes.size(); i++) {
+		std::cout << boost::format("%02x") % static_cast<int>(randBytes[i]);
+	}
+	std::cout << "\n";
+
+	esdm_rpcc_fini_unpriv_service();
+}
+
+void testRandBytesPr(size_t requestedNumberOfBytes = 32) {
 	ssize_t ret = 0;
 
 	esdm_rpcc_init_unpriv_service(NULL);
 
-	std::array<uint8_t, 32> randBytes;
+	std::vector<uint8_t> randBytes;
+	randBytes.resize(requestedNumberOfBytes);
 	esdm_invoke(
 		esdm_rpcc_get_random_bytes_pr(randBytes.data(), randBytes.size()));
 
@@ -22,84 +75,18 @@ void testUnprivRand() {
 	esdm_rpcc_fini_unpriv_service();
 }
 
-//todo: finish function calls
-
-// void testUnprivRandBytesFull() {
-// 	size_t ret = 0;
-// 	esdm_rpcc_init_unpriv_service(NULL);
-// 	esdm_rpcc_fini_unpriv_service();
-// }
-// void testUnprivRandBytesMin() {
-// 	size_t ret = 0;
-// 	esdm_rpcc_init_unpriv_service(NULL);
-// 	esdm_rpcc_fini_unpriv_service();
-// }
-// void testUnprivRandBytes() {
-// 	size_t ret = 0;
-// 	esdm_rpcc_init_unpriv_service(NULL);
-// 	esdm_rpcc_fini_unpriv_service();
-// }
-// void testUnprivWriteData() {
-// 	size_t ret = 0;
-// 	esdm_rpcc_init_unpriv_service(NULL);
-// 	esdm_rpcc_fini_unpriv_service();
-// }
-
-//todo: maybe rename
-void testEntCnt() {
-	esdm_rpcc_init_unpriv_service(NULL);
+// todo arguments for write data
+// void testWriteData(std::vector<uint8_t> data = std::vector<uint8_t>({})) {
+void testWriteData() {
 	size_t ret = 0;
-	unsigned int entropyCount = 0;
-	esdm_invoke(esdm_rpcc_rnd_get_ent_cnt(&entropyCount));
-	std::cout << "ret1:" << ret << "\n";
-    assert(ret == 0);
-	// esdm_invoke(esdm_rpcc_rnd_reseed_crng());
-	// std::cout << "ret2:" << ret << "\n";
-	// esdm_invoke(esdm_rpcc_rnd_clear_pool());
-	// std::cout << "ret3:" << ret << "\n";
-	std::cout << "entropyCount:" << entropyCount << "\n";
-	esdm_rpcc_fini_unpriv_service();
-}
+	esdm_rpcc_init_unpriv_service(NULL);
 
-// void testPrivAddToEntCnt() {
-// 	ssize_t ret = 0;
-// 	esdm_rpcc_init_priv_service(NULL);
-// 	esdm_invoke(esdm_rpcc_rnd_add_to_ent_cnt());
-// 	assert(ret == 0);
-// 	esdm_rpcc_fini_priv_service();
-// }
-// void testPrivClearPool() {
-// 	ssize_t ret = 0;
-// 	esdm_rpcc_init_priv_service(NULL);
-// 	esdm_invoke(esdm_rpcc_rnd_clear_pool());
-// 	assert(ret == 0);
-// 	esdm_rpcc_fini_priv_service();
-// }
-// void testPrivReseedCrng() {
-// 	ssize_t ret = 0;
-// 	esdm_rpcc_init_priv_service(NULL);
-// 	esdm_invoke(esdm_rpcc_rnd_reseed_crng());
-// 	assert(ret == 0);
-// 	esdm_rpcc_fini_priv_service();
-// }
+	std::array<uint8_t, 32> dataToWrite;
+	memset(dataToWrite.data(), 0, dataToWrite.size());
+	esdm_invoke(esdm_rpcc_write_data(dataToWrite.data(), dataToWrite.size()));
 
-void testPrivRand() {
-	ssize_t ret = 0;
-
-	esdm_rpcc_init_priv_service(NULL);
-
-	std::array<uint8_t, 32> randBytes;
-	std::cout << "Warning: this is cyclic entropy feeding for testing purposes "
-				 "and should never be done in production!"
-			  << std::endl;
-	esdm_invoke(esdm_rpcc_rnd_add_entropy(randBytes.data(), randBytes.size(),
-										  randBytes.size() * 8));
-	if (ret < 0) {
-		std::cout << "ret =" << ret << " . Have you tried running as sudo?\n";
-	}
 	assert(ret == 0);
-
-	esdm_rpcc_fini_priv_service();
+	esdm_rpcc_fini_unpriv_service();
 }
 
 void testStatus() {
@@ -143,4 +130,136 @@ void testSeed() {
 	}
 
 	esdm_rpcc_fini_unpriv_service();
+}
+
+// todo: maybe rename
+void testEntCnt() {
+	esdm_rpcc_init_unpriv_service(NULL);
+	ssize_t ret = 0;
+	unsigned int entropyCount = 0;
+	esdm_invoke(esdm_rpcc_rnd_get_ent_cnt(&entropyCount));
+	if (ret < 0) {
+		std::cout << "ret =" << ret << "\n";
+	}
+	assert(ret == 0);
+	std::cout << "entropyCount:" << entropyCount << "\n";
+	esdm_rpcc_fini_unpriv_service();
+}
+
+void testPrivAddEntropy() {
+	ssize_t ret = 0;
+
+	esdm_rpcc_init_priv_service(NULL);
+
+	std::array<uint8_t, 32> randBytes;
+	std::cout << "Warning: this is cyclic entropy feeding for testing purposes "
+				 "and should never be done in production!"
+			  << std::endl;
+	esdm_invoke(esdm_rpcc_rnd_add_entropy(randBytes.data(), randBytes.size(),
+										  randBytes.size() * 8));
+	if (ret < 0) {
+		std::cout << "ret =" << ret << " . Have you tried running as sudo?\n";
+	}
+	assert(ret == 0);
+
+	esdm_rpcc_fini_priv_service();
+}
+
+void testPrivAddToEntCnt(unsigned int countToAdd = 1) {
+	ssize_t ret = 0;
+	esdm_rpcc_init_priv_service(NULL);
+	esdm_invoke(esdm_rpcc_rnd_add_to_ent_cnt(countToAdd));
+	if (ret < 0) {
+		std::cout << "ret =" << ret << " . Have you tried running as sudo?\n";
+	}
+	assert(ret == 0);
+	esdm_rpcc_fini_priv_service();
+}
+
+void testPrivClearPool() {
+	ssize_t ret = 0;
+	esdm_rpcc_init_priv_service(NULL);
+	esdm_invoke(esdm_rpcc_rnd_clear_pool());
+	if (ret < 0) {
+		std::cout << "ret =" << ret << " . Have you tried running as sudo?\n";
+	}
+	assert(ret == 0);
+	esdm_rpcc_fini_priv_service();
+}
+
+void testPrivReseedCrng() {
+	ssize_t ret = 0;
+	esdm_rpcc_init_priv_service(NULL);
+	esdm_invoke(esdm_rpcc_rnd_reseed_crng());
+	if (ret < 0) {
+		std::cout << "ret =" << ret << " . Have you tried running as sudo?\n";
+	}
+	assert(ret == 0);
+	esdm_rpcc_fini_priv_service();
+}
+
+// esdm_rpcc functions: /proc handlers
+void testGetPoolsize() {
+	ssize_t ret = 0;
+	esdm_rpcc_init_unpriv_service(NULL);
+	unsigned int returnedPoolSize = 0;
+	esdm_invoke(esdm_rpcc_get_poolsize(&returnedPoolSize));
+	if (ret < 0) {
+		std::cout << "ret =" << ret << "\n";
+	}
+	assert(ret == 0);
+	std::cout << "poolsize: " << returnedPoolSize << "\n";
+	esdm_rpcc_fini_unpriv_service();
+}
+
+void testGetWriteWakeupThresh() {
+	ssize_t ret = 0;
+	esdm_rpcc_init_unpriv_service(NULL);
+	unsigned int returnedWakupThreshold = 0;
+	esdm_invoke(esdm_rpcc_get_write_wakeup_thresh(&returnedWakupThreshold));
+	if (ret < 0) {
+		std::cout << "ret =" << ret << "\n";
+	}
+	assert(ret == 0);
+	std::cout << "wakeup threshold: " << returnedWakupThreshold << "\n";
+	esdm_rpcc_fini_unpriv_service();
+}
+
+// need priv service here. else we get errno: 14 (EFAULT)
+void testPrivSetWriteWakeupThresh(unsigned int newWakeupThreshold = 0) {
+	ssize_t ret = 0;
+	esdm_rpcc_init_priv_service(NULL);
+	esdm_invoke(esdm_rpcc_set_write_wakeup_thresh(newWakeupThreshold));
+	if (ret < 0) {
+		std::cout << "ret =" << ret << " . Have you tried running as sudo?\n";
+	}
+	assert(ret == 0);
+	std::cout << "wakeup threshold set to: " << newWakeupThreshold << "\n";
+	esdm_rpcc_fini_priv_service();
+}
+
+void testGetMinReseedSecs() {
+	ssize_t ret = 0;
+	esdm_rpcc_init_unpriv_service(NULL);
+	unsigned int returnedMinReseedSeconds = 0;
+	esdm_invoke(esdm_rpcc_get_min_reseed_secs(&returnedMinReseedSeconds));
+	if (ret < 0) {
+		std::cout << "ret =" << ret << "\n";
+	}
+	assert(ret == 0);
+	std::cout << "min reseed seconds: " << returnedMinReseedSeconds << "\n";
+	esdm_rpcc_fini_unpriv_service();
+}
+
+// need priv service here. else we get errno: 14 (EFAULT)
+void testPrivSetMinReseedSecs(unsigned int newMinReseedSecs = 60) {
+	ssize_t ret = 0;
+	esdm_rpcc_init_priv_service(NULL);
+	esdm_invoke(esdm_rpcc_set_min_reseed_secs(newMinReseedSecs));
+	if (ret < 0) {
+		std::cout << "ret =" << ret << " . Have you tried running as sudo?\n";
+	}
+	assert(ret == 0);
+	std::cout << "min reseed secs set to: " << newMinReseedSecs << "\n";
+	esdm_rpcc_fini_priv_service();
 }

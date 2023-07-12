@@ -21,16 +21,48 @@ using ns = std::chrono::nanoseconds;
 using Clock = std::chrono::high_resolution_clock;
 using measureEntropyOutput = std::vector<std::pair<int64_t, int>>;
 
+// todo: function int64_6 ->
+// Json::Value[duration1:unit1,time1],[duration2:unit2,time2]
+
+// Json::Value timeFieldFromNanoseconds(int64_t timeInNanoseconds) {
+// std::cout << timeInNanoseconds << "<---input\n";
+// ns nanoseconds = ns(timeInNanoseconds);
+// std::cout << nanoseconds.count() << "<---chrono ns\n";
+// us mikroseconds = std::chrono::duration<int64_t, ns>(nanoseconds);
+// std::cout << mikroseconds.count() << "<---chrono us\n";
+// us milliseconds = us(nanoseconds);
+// std::cout << milliseconds.count() << "<---chrono ms\n";
+// us seconds = us(nanoseconds);
+// std::cout << seconds.count() << "<---chrono s\n";
+// Json::Value root;
+// root["duration"];
+// return root;
+// }
+
+// todorm: testFunction remove
+//  void testTest(int64_t testInput = 1243567890123){
+//  	Json::Value root;
+//  	root["duration"] = timeFieldFromNanoseconds(testInput);
+//  	Writer writer;
+//  	writer.writeOutputFile("testJsonOutput", root);
+//  }
+
 void getRandomNumbers(
 	std::optional<std::vector<std::pair<size_t, std::string>>>& returnVec,
+	std::optional<std::vector<int64_t>>& durationVec,
+	// std::optional<std::pair<std::vector<std::pair<size_t,
+	// std::string>>,std::vector<int64_t>>>& returnVec,
 	const int requestSize = 32) {
 	size_t ret = 0;
 	std::vector<uint8_t> randBytes;
 	randBytes.resize(requestSize);
+	std::chrono::time_point<std::chrono::system_clock> beforeRpcc =
+		Clock::now();
 	esdm_invoke(
 		esdm_rpcc_get_random_bytes_pr(randBytes.data(), randBytes.size()));
+	std::chrono::time_point<std::chrono::system_clock> afterRpcc = Clock::now();
 	assert(ret > 0);
-	if (returnVec != std::nullopt) {
+	if (returnVec != std::nullopt && durationVec != std::nullopt) {
 		std::string returnString;
 		returnString.append("0x");
 		for (size_t i = 0; i < randBytes.size(); ++i) {
@@ -38,11 +70,20 @@ void getRandomNumbers(
 				str(boost::format("%02x") % static_cast<int>(randBytes[i])));
 		}
 		returnVec->push_back(std::make_pair(ret, returnString));
+
+		auto duration = afterRpcc - beforeRpcc;
+		ns durationRpcc = std::chrono::duration_cast<ns>(duration);
+		durationVec->push_back(durationRpcc.count());
+		// returnVec->second.push_back(durationRpcc);
 	}
 }
 
+// todo: measure rate
 int64_t benchmarkTimeGetRandom(
 	std::optional<std::vector<std::pair<size_t, std::string>>>& returnVec,
+	std::optional<std::vector<int64_t>>& durationVec,
+	// std::optional<std::pair<std::vector<std::pair<size_t,
+	// std::string>>,std::vector<int64_t>>>& returnVec,
 	const size_t requests = 1, const int requestSize = 32) {
 	esdm_rpcc_init_unpriv_service(NULL);
 	std::chrono::time_point<std::chrono::system_clock> start = Clock::now();
@@ -52,7 +93,7 @@ int64_t benchmarkTimeGetRandom(
 	// assertion of returned values: assert(ret > 0) in getRandomNumbers()
 	assert(requestSize > 0);
 	for (size_t i = 0; i < requests; i++) {
-		getRandomNumbers(returnVec, requestSize);
+		getRandomNumbers(returnVec, durationVec, requestSize);
 	}
 	std::chrono::time_point<std::chrono::system_clock> end = Clock::now();
 
@@ -198,23 +239,32 @@ bool startTimeGetRandom(const std::string outputFileName, Config config) {
 		return false;
 	}
 
-	std::optional<std::vector<std::pair<size_t, std::string>>> retVec =
+	// todo maybe compose rpccRetVec and individualDurationRetVec into an
+	// std::optional<std::pair<....>>
+	std::optional<std::vector<std::pair<size_t, std::string>>> rpccRetVec =
 		std::vector<std::pair<size_t, std::string>>();
+	// std::optional<std::pair<std::vector<std::pair<size_t,
+	// std::string>>,std::vector<int64_t>>> rpccRetVec =
+	// std::pair<std::vector<std::pair<size_t,
+	// std::string>>,std::vector<int64_t>>();
+	std::optional<std::vector<int64_t>> individualDurationRetVec =
+		std::vector<int64_t>();
 	if (!saveRandomOutput) {
-		retVec = std::nullopt;
+		rpccRetVec = std::nullopt;
+		individualDurationRetVec = std::nullopt;
 	}
-
 	if (parameters.size() == 2) {
-		std::cout << "testParametersOut:" << std::stoi(parameters[0]) << "|"
-				  << std::stoi(parameters[1]) << "\n";
 		outputDuration = benchmarkTimeGetRandom(
-			retVec, std::stoi(parameters[0]), std::stoi(parameters[1]));
+			rpccRetVec, individualDurationRetVec, std::stoi(parameters[0]),
+			std::stoi(parameters[1]));
 	} else if (parameters.size() == 1) {
-		outputDuration =
-			benchmarkTimeGetRandom(retVec, std::stoi(parameters[0]));
+		outputDuration = benchmarkTimeGetRandom(
+			rpccRetVec, individualDurationRetVec, std::stoi(parameters[0]));
 	} else {
-		outputDuration = benchmarkTimeGetRandom(retVec);
+		outputDuration =
+			benchmarkTimeGetRandom(rpccRetVec, individualDurationRetVec);
 	}
+	// todo: json field names as macros?
 
 	// save result
 	Json::Value data;
@@ -224,13 +274,22 @@ bool startTimeGetRandom(const std::string outputFileName, Config config) {
 	Json::Value durationEntry;
 	durationEntry["unit"] = "nanoseconds";
 	durationEntry["time"] = outputDuration;
+	// todo: durationEntry["timeInSeconds"] = std::chrono::duration_cast<
 	data["duration"] = durationEntry;
-	for (auto i : *retVec) {
+
+	assert(rpccRetVec->size() == individualDurationRetVec->size());
+	for (size_t i = 0; i < rpccRetVec->size(); i++) {
 		Json::Value returnedValues;
-		returnedValues["numberOfReturnedBytes"] = i.first;
-		returnedValues["returnedBytes"] = i.second;
+		// returnedValues["numberOfReturnedBytes"] = i.first.first;
+		// returnedValues["returnedBytes"] = i.first.second;
+		// returnedValues["invokationDuration"] = i.second;
+		returnedValues["numberOfReturnedBytes"] = (*rpccRetVec)[i].first;
+		returnedValues["returnedBytes"] = (*rpccRetVec)[i].second;
+		returnedValues["invokationDuration"]["unit"] = "nanoseconds";
+		returnedValues["invokationDuration"]["time"] =
+			(*individualDurationRetVec)[i];
+
 		data["returnedValues"].append(returnedValues);
-		std::cout << "first:" << i.first << "|second:" << i.second << "\n";
 	}
 
 	Writer writer;
@@ -251,7 +310,7 @@ bool startMeasureEntropy(const std::string outputFileName, Config config) {
 				  << "(2) delta   : If set, only check after 'delta' "
 					 "microseconds have "
 					 "passed\n";
-		return -1;
+		return false;
 	} else if (parameters.size() == 2) {
 		benchmarkMeasureEntropy(output, std::stoi(parameters[0]),
 								std::stoi(parameters[1]));
@@ -295,6 +354,7 @@ bool startTimeToSeed(const std::string outputFileName, Config config) {
 					 "Expected 0 "
 					 "Argument:\n"
 				  << "(0) type: 'TimeToSeed'\n";
+		return false;
 	} else if (parameters.size() == 0) {
 		outputTimeToSeed = timeTillSeeded();
 	}
@@ -311,41 +371,46 @@ bool startTimeToSeed(const std::string outputFileName, Config config) {
 	return writer.writeOutputFile(outputFileName, data, config);
 }
 
-bool callBenchmark(Config config) {
-	std::cout << "vector.size():" << config.getBenchmarkParameters().size()
-			  << "\n";
+const std::string availableBenchmarkFunctions =
+	// clang-format off
+				  "Available benchmarks: \n"
+				  "timeGetRandom : Call esdm_rpcc_get_random_bytes_pr\n"
+				  "\t -Parameters:\n"
+				  "\t\t requests :\t Number of times the function is called\n"
+				  "\t\t requestSize:\tAmount of requested random bytes\n"
+				  "measureEntropy : Read the entropy status of the esdm\n"
+				  "\t -Parameters:\n"
+				  "\t\t observationTime:\tFor how long the entropy status is measured."
+			   	  "(default: until fully seeded)\n"
+				  "\t\t deltaMs:\tDelta until next measurement is attempted (default: 0ms)"
+				  "timeToSeed : Measure the time till esdm is fully seeded\n";
+// clang-format on
+;
 
+std::string createOutFileName(Config config, int runningNumberRepetition) {
+	std::string typeStr;
+	if (config.getFunctionType() == FunctionType::benchmark)
+		typeStr = benchmarkTypeToString(config.getBenchmarkType());
+	else if (config.getFunctionType() == FunctionType::test)
+		typeStr = functionTypeToString(config.getFunctionType());
+	std::string outputFileName = config.getOutputDirName() + typeStr + "." +
+								 std::to_string(runningNumberRepetition) + "." +
+								 config.getOutputFileName();
+	return outputFileName;
+}
+
+bool callBenchmark(Config config) {
 	BenchmarkType type = config.getBenchmarkType();
 	if (config.getBenchmarkType() == BenchmarkType::noType) {
-		std::cout
-			<< "please specify a benchmark to run:\n"
-			<< "'timeGetRandom(requests,requestSize)':\tCall "
-			   "esdm_rpcc_get_random_bytes_pr\n"
-			<< "\t requests       :\tNumber of times the function is called\n"
-			<< "\t requestSize    :\tAmount of requested random bytes\n\n"
-			<< "'measureEntropy(observationTime,deltaMs)':\t Read the entropy "
-			   "status of the esdm\n"
-			<< "\t observationTime:\tFor how long the entropy status is "
-			   "measured "
-			   "(default: "
-			   "until fully seeded)\n"
-			<< "\t deltaMs        :\tOnly read the entropy status after "
-			   "'deltaMs' "
-			   "milliseconds (default: 0) have passed since the last "
-			   "observationTime\n\n"
-			<< "'timeToSeed()':\tMeasure the time till esdm is fully "
-			   "seeded\n";
+		std::cout << "please specify a benchmark to run:\n"
+				  << availableBenchmarkFunctions;
 		return false;
 	}
 
 	std::string typeStr = benchmarkTypeToString(type);
 	if (type == BenchmarkType::unknownType) {
 		std::cout << "Unknown benchmark: " << config.getRawBenchmarkType()
-				  << "\n"
-				  << "Available benchmarks: \n"
-				  << "timeGetRandom\n"
-				  << "measureEntropy\n"
-				  << "timeToSeed\n";
+				  << "\n";
 		return false;
 	}
 
@@ -360,10 +425,7 @@ bool callBenchmark(Config config) {
 	const int repetitions = config.getRepetitions();
 	assert(repetitions > 0);
 	for (int i = 0; i < repetitions; i++) {
-		std::string outputFileName = outputDir + typeStr + "." +
-									 std::to_string(i) + "." +
-									 config.getOutputFileName();
-		std::cout << outputFileName << "\n";
+		std::string outputFileName = createOutFileName(config, i);
 		switch (type) {
 		case BenchmarkType::timeGetRandom:
 			successfullExecution &= startTimeGetRandom(outputFileName, config);
@@ -384,21 +446,43 @@ bool callBenchmark(Config config) {
 	return successfullExecution;
 }
 
-void testJson() {
-	Json::Value test;
-	test["entry"] = "FirstEntry";
-
-	std::cout << "entry of test:" << test["entry"].asString() << "\n";
-}
+const std::string availableTestFunctions =
+	"Available test functions:\n"
+	"testRandBytes : call esdm_rpcc_get_random_bytes\n"
+	"testRandBytesFull : call esdm_rpcc_get_random_bytes_full\n"
+	"testRandBytesMin : call esdm_rpcc_get_random_bytes_min\n"
+	"testRandBytesPr : call esdm_rpcc_get_random_bytes_pr\n"
+	"testWriteData : call esdm_rpcc_write_data\n"
+	"testStatus     : call esdm_rpcc_status\n"
+	"testSeed       : call esdm_rpcc_get_seed\n"
+	"testEntCnt : call esdm_rpcc_get_ent_cnt\n"
+	"testGetPoolsize : call esdm_rpcc_poolsize\n"
+	"testGetWriteWakeupThresh     : call esdm_rpcc_get_write_wakeup_thresh\n"
+	"testPrivSetWriteWakeupThresh : call esdm_rpcc_set_write_wakeup_thresh\n"
+	"testGetMinReseedSecs : call esdm_rpcc_get_min_reseed_secs\n"
+	"testPrivSetMinReseedSecs : call esdm_rpcc_set_min_reseed_secs\n"
+	"testPrivAddEntropy   : call esdm_rpcc_rnd_add_entropy\n"
+	"testPrivAddToEntCnt : call esdm_rpcc_rnd_add_to_ent_cnt\n"
+	"testPrivClearPool : call esdm_rpcc_rnd_clear_pool\n"
+	"testPrivReseedCrng : call esdm_rpcc_rnd_reseed_crng\n";
 
 bool callTest(Config config) {
 	TestType testType = config.getTestType();
 	switch (testType) {
-	case TestType::testUnprivRand:
-		testUnprivRand();
+	case TestType::testRandBytes:
+		testRandBytes();
 		return true;
-	case TestType::testPrivRand:
-		testPrivRand();
+	case TestType::testRandBytesFull:
+		testRandBytesFull();
+		return true;
+	case TestType::testRandBytesMin:
+		testRandBytesMin();
+		return true;
+	case TestType::testRandBytesPr:
+		testRandBytesPr();
+		return true;
+	case TestType::testWriteData:
+		testWriteData();
 		return true;
 	case TestType::testStatus:
 		testStatus();
@@ -409,24 +493,44 @@ bool callTest(Config config) {
 	case TestType::testEntCnt:
 		testEntCnt();
 		return true;
-	case TestType::testJson:
-		testJson();
+	case TestType::testGetPoolsize:
+		testGetPoolsize();
 		return true;
-	case TestType::noType:
-		std::cout << "Available test functions:\n"
-				  << "testUnprivRand : call esdm_rpcc_get_random_bytes_pr\n"
-				  << "testPrivRand   : call esdm_rpcc_rnd_add_entropy\n"
-				  << "testStatus     : call esdm_rpcc_status\n"
-				  << "testSeed       : call esdm_rpcc_get_seed\n";
-		return false;
+	case TestType::testGetWriteWakeupThresh:
+		testGetWriteWakeupThresh();
+		return true;
+	case TestType::testPrivSetWriteWakeupThresh:
+		testPrivSetWriteWakeupThresh();
+		return true;
+	case TestType::testGetMinReseedSecs:
+		testGetMinReseedSecs();
+		return true;
+	case TestType::testPrivSetMinReseedSecs:
+		testPrivSetMinReseedSecs();
+		return true;
+	case TestType::testPrivAddEntropy:
+		testPrivAddEntropy();
+		return true;
+	case TestType::testPrivAddToEntCnt:
+		testPrivAddToEntCnt();
+		return true;
+	case TestType::testPrivClearPool:
+		testPrivClearPool();
+		return true;
+	case TestType::testPrivReseedCrng:
+		testPrivReseedCrng();
+		return true;
 	case TestType::unknownType:
 		std::cout << "unknown test with name:'" << config.getRawTestType()
-				  << "' called\n";
+				  << "' called\n"
+				  << availableTestFunctions;
+		return false;
+	case TestType::noType:
+		std::cout << availableTestFunctions;
+		return false;
 	default:
 		break;
 	}
-	// todo add raw fields to config (tests, benchmark) so that we can print
-	// e.g. typos todo unknown type to TestType
 	return false;
 }
 
@@ -460,7 +564,6 @@ void createConfigFromArgs(int argc, char* argv[], Config& config) {
 		po::store(po::parse_command_line(argc, argv, desc), vm);
 		po::notify(vm);
 
-		std::cout << "test outside:" << test << "\n";
 		FunctionType functionType;
 		BenchmarkType benchmarkType;
 		std::string rawBenchmarkType;
@@ -479,17 +582,10 @@ void createConfigFromArgs(int argc, char* argv[], Config& config) {
 		} else if (vm.count("test")) {
 			functionType = FunctionType::test;
 			benchmarkType = BenchmarkType::noType;
-			std::cout << "test:" << test << "\n";
 			testType = stringToTestType(test);
-		} else {
+		} else if (help) {
 			std::cout << desc << "\n";
 		}
-
-		if (help)
-			std::cout << desc << '\n';
-
-		// Config
-		// config(functionType,testType,benchmarkType,repetitions,outputFile,outputDir,help,showStatus,save);
 		config = Config(functionType, testType, benchmarkType,
 						benchmarkParameters, repetitions, outputFile, outputDir,
 						help, showStatus, save, test, rawBenchmarkType);
