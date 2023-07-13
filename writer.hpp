@@ -1,7 +1,50 @@
 #pragma once
+#include <chrono>
 #include <fstream>
 #include <json/json.h>
 #include <string>
+
+using s = std::chrono::seconds;
+using ms = std::chrono::milliseconds;
+using us = std::chrono::microseconds;
+using ns = std::chrono::nanoseconds;
+using Clock = std::chrono::high_resolution_clock;
+using measureEntropyOutput = std::vector<std::pair<int64_t, int>>;
+
+void makeOutputDir(std::string outputDir) {
+	bool mkdir = std::filesystem::create_directory(outputDir);
+	if (mkdir)
+		std::cout << "Create output directory:" << outputDir << "\n";
+}
+
+void timeFieldFromNanoseconds(int64_t timeInNanoseconds,
+							  Json::Value& appendToThis,
+							  std::string toUnit = "ns",
+							  std::string fieldName = "data") {
+	ns nanoseconds = ns(timeInNanoseconds);
+	int64_t convertedTime = 0;
+	std::string unitName;
+	if (toUnit == "ns") {
+		unitName = "nanoseconds";
+		convertedTime = nanoseconds.count();
+	} else if (toUnit == "us") {
+		us microseconds = std::chrono::duration_cast<us>(nanoseconds);
+		unitName = "microseconds";
+		convertedTime = microseconds.count();
+	} else if (toUnit == "ms") {
+		ms milliseconds = std::chrono::duration_cast<ms>(nanoseconds);
+		unitName = "milliseconds";
+		convertedTime = milliseconds.count();
+	} else if (toUnit == "s") {
+		s seconds = std::chrono::duration_cast<s>(nanoseconds);
+		unitName = "seconds";
+		convertedTime = seconds.count();
+	} else {
+		std::cout << "unknown unit:" << toUnit
+				  << ". Choose one of: [ns,us,ms,s]\n";
+	}
+	appendToThis[fieldName][unitName] = convertedTime;
+}
 
 enum class FunctionType {
 	benchmark,
@@ -27,15 +70,15 @@ enum class TestType {
 	testStatus,
 	testSeed,
 	testEntCnt,
+	testPrivAddEntropy,
+	testPrivAddToEntCnt,
+	testPrivClearPool,
+	testPrivReseedCrng,
 	testGetPoolsize,
 	testGetWriteWakeupThresh,
 	testPrivSetWriteWakeupThresh,
 	testGetMinReseedSecs,
 	testPrivSetMinReseedSecs,
-	testPrivAddEntropy,
-	testPrivAddToEntCnt,
-	testPrivClearPool,
-	testPrivReseedCrng,
 	noType,
 	unknownType,
 };
@@ -57,6 +100,14 @@ TestType stringToTestType(std::string testString) {
 		return TestType::testSeed;
 	else if (testString == "testEntCnt")
 		return TestType::testEntCnt;
+	else if (testString == "testPrivAddEntropy")
+		return TestType::testPrivAddEntropy;
+	else if (testString == "testPrivAddToEntCnt")
+		return TestType::testPrivAddToEntCnt;
+	else if (testString == "testPrivClearPool")
+		return TestType::testPrivClearPool;
+	else if (testString == "testPrivReseedCrng")
+		return TestType::testPrivReseedCrng;
 	else if (testString == "testGetPoolsize")
 		return TestType::testGetPoolsize;
 	else if (testString == "testGetWriteWakeupThresh")
@@ -67,14 +118,6 @@ TestType stringToTestType(std::string testString) {
 		return TestType::testGetMinReseedSecs;
 	else if (testString == "testPrivSetMinReseedSecs")
 		return TestType::testPrivSetMinReseedSecs;
-	else if (testString == "testPrivAddEntropy")
-		return TestType::testPrivAddEntropy;
-	else if (testString == "testPrivAddToEntCnt")
-		return TestType::testPrivAddToEntCnt;
-	else if (testString == "testPrivClearPool")
-		return TestType::testPrivClearPool;
-	else if (testString == "testPrivReseedCrng")
-		return TestType::testPrivReseedCrng;
 	else if (testString == "" || testString == "noType")
 		return TestType::noType;
 	else
@@ -84,10 +127,10 @@ TestType stringToTestType(std::string testString) {
 std::string testTypeToString(TestType testType) {
 	if (testType == TestType::testRandBytes)
 		return "testRandBytes";
-	else if (testType == TestType::testRandBytesMin)
-		return "testRandBytesMin";
 	else if (testType == TestType::testRandBytesFull)
 		return "testRandBytesFull";
+	else if (testType == TestType::testRandBytesMin)
+		return "testRandBytesMin";
 	else if (testType == TestType::testRandBytesPr)
 		return "testRandBytesPr";
 	else if (testType == TestType::testWriteData)
@@ -98,6 +141,14 @@ std::string testTypeToString(TestType testType) {
 		return "testSeed";
 	else if (testType == TestType::testEntCnt)
 		return "testEntCnt";
+	else if (testType == TestType::testPrivAddEntropy)
+		return "testPrivAddEntropy";
+	else if (testType == TestType::testPrivAddToEntCnt)
+		return "testPrivAddToEntCnt";
+	else if (testType == TestType::testPrivClearPool)
+		return "testPrivClearPool";
+	else if (testType == TestType::testPrivReseedCrng)
+		return "testPrivReseedCrng";
 	else if (testType == TestType::testGetPoolsize)
 		return "testGetPoolsize";
 	else if (testType == TestType::testGetWriteWakeupThresh)
@@ -108,14 +159,6 @@ std::string testTypeToString(TestType testType) {
 		return "testGetMinReseedSecs";
 	else if (testType == TestType::testPrivSetMinReseedSecs)
 		return "testPrivSetMinReseedSecs";
-	else if (testType == TestType::testPrivAddEntropy)
-		return "testPrivAddEntropy";
-	else if (testType == TestType::testPrivAddToEntCnt)
-		return "testPrivAddToEntCnt";
-	else if (testType == TestType::testPrivClearPool)
-		return "testPrivClearPool";
-	else if (testType == TestType::testPrivReseedCrng)
-		return "testPrivReseedCrng";
 	else if (testType == TestType::noType)
 		return "noType";
 	else
@@ -159,6 +202,7 @@ std::string benchmarkTypeToString(BenchmarkType benchmarkType) {
 class Config {
 	FunctionType functionType;
 	TestType testType;
+	std::vector<std::string> testParameters;
 	BenchmarkType benchmarkType;
 	std::vector<std::string> benchmarkParameters;
 	int repetitions;
@@ -173,23 +217,24 @@ class Config {
 
   public:
 	Config(FunctionType functionType, TestType testType,
-		   BenchmarkType benchmarkType,
+		   std::vector<std::string> testParameters, BenchmarkType benchmarkType,
 		   std::vector<std::string> benchmarkParameters, int repetitions,
 		   std::string outputFileName, std::string outputDirName, bool help,
 		   bool status, bool save, std::string rawTestType = "",
 		   std::string rawBenchmarkType = "")
 		: functionType(functionType), testType(testType),
-		  benchmarkType(benchmarkType),
+		  testParameters(testParameters), benchmarkType(benchmarkType),
 		  benchmarkParameters(benchmarkParameters), repetitions(repetitions),
 		  outputFileName(outputFileName), outputDirName(outputDirName),
 		  help(help), status(status), save(save), rawTestType(rawTestType),
 		  rawBenchmarkType(rawBenchmarkType){};
 	void printConfig(bool printAll = false);
-	void printBenchmarkParameters();
+	void printStringVector(const std::vector<std::string> stringVec);
 
 	// getters
 	FunctionType getFunctionType() { return functionType; };
 	TestType getTestType() { return testType; };
+	std::vector<std::string> getTestParameters() { return testParameters; };
 	BenchmarkType getBenchmarkType() { return benchmarkType; };
 	std::vector<std::string> getBenchmarkParameters() {
 		return benchmarkParameters;
@@ -208,6 +253,9 @@ class Config {
 		this->functionType = type;
 	};
 	void setTestType(const TestType type) { this->testType = type; };
+	void setTestParameters(const std::vector<std::string> parameters) {
+		this->testParameters = parameters;
+	};
 	void setBenchmarkType(const BenchmarkType type) {
 		this->benchmarkType = type;
 	};
@@ -234,8 +282,8 @@ class Config {
 	void setSave(const bool save) { this->save = save; };
 };
 
-void Config::printBenchmarkParameters() {
-	for (auto i : benchmarkParameters) {
+void Config::printStringVector(const std::vector<std::string> stringVec) {
+	for (auto i : stringVec) {
 		std::cout << i << "\t";
 	}
 	std::cout << "\n";
@@ -248,12 +296,14 @@ void Config::printConfig(bool printAll) {
 			  << "\ttestType:\t" << testTypeToString(this->testType) << "\n";
 	if (printAll)
 		std::cout << "\trawTestType:\t" << this->rawTestType << "\n";
+	std::cout << "\ttestParameters:\t";
+	printStringVector(this->testParameters);
 	std::cout << "\tbenchmarkType:\t"
 			  << benchmarkTypeToString(this->benchmarkType) << "\n";
 	if (printAll)
 		std::cout << "\trawBenchmarkType:\t" << this->rawBenchmarkType << "\n";
 	std::cout << "\tbenchmarkParameters:\t";
-	printBenchmarkParameters();
+	printStringVector(this->benchmarkParameters);
 	std::cout << "\trepetitions:\t" << this->repetitions << "\n"
 			  << "\toutputFileName:\t" << this->outputFileName << "\n"
 			  << "\toutputDirName:\t" << this->outputDirName << "\n"

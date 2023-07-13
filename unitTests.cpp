@@ -23,8 +23,8 @@ Config makeConfig(std::string argumentString) {
 		argv[i] = parameters[i].data();
 	}
 
-	Config config(FunctionType::noType, TestType::noType, BenchmarkType::noType,
-				  {}, 0, "", "", false, false, false);
+	Config config(FunctionType::noType, TestType::noType, {},
+				  BenchmarkType::noType, {}, 0, "", "", false, false, false);
 	createConfigFromArgs(argc, argv, config);
 	// config.printConfig();
 	return config;
@@ -36,6 +36,7 @@ TEST_CASE("ConfigBenchmarkValid::TimeGetRandom", "[config][benchmark]") {
 
 	REQUIRE(config.getFunctionType() == FunctionType::benchmark);
 	REQUIRE(config.getTestType() == TestType::noType);
+	REQUIRE(config.getTestParameters().empty());
 	REQUIRE(config.getBenchmarkType() == BenchmarkType::timeGetRandom);
 	REQUIRE(config.getBenchmarkParameters().empty());
 	REQUIRE(config.getRawTestType().compare("") == 0);
@@ -58,6 +59,7 @@ TEST_CASE("ConfigBenchmarkValid::TimeGetRandomOneParameter",
 
 	REQUIRE(config.getFunctionType() == FunctionType::benchmark);
 	REQUIRE(config.getTestType() == TestType::noType);
+	REQUIRE(config.getTestParameters().empty());
 	REQUIRE(config.getBenchmarkType() == BenchmarkType::timeGetRandom);
 	REQUIRE(config.getBenchmarkParameters() ==
 			std::vector<std::string>({"10"}));
@@ -81,6 +83,7 @@ TEST_CASE("ConfigBenchmarkValid::TimeGetRandomTwoParameters",
 
 	REQUIRE(config.getFunctionType() == FunctionType::benchmark);
 	REQUIRE(config.getTestType() == TestType::noType);
+	REQUIRE(config.getTestParameters().empty());
 	REQUIRE(config.getBenchmarkType() == BenchmarkType::timeGetRandom);
 	REQUIRE(config.getBenchmarkParameters() ==
 			std::vector<std::string>({"10", "16"}));
@@ -105,6 +108,7 @@ TEST_CASE("ConfigBenchmarkInvalid::TimeGetRandomTooManyParameters",
 
 	REQUIRE(config.getFunctionType() == FunctionType::benchmark);
 	REQUIRE(config.getTestType() == TestType::noType);
+	REQUIRE(config.getTestParameters().empty());
 	REQUIRE(config.getBenchmarkType() == BenchmarkType::timeGetRandom);
 	REQUIRE(config.getBenchmarkParameters() ==
 			std::vector<std::string>({"10", "16", "1"}));
@@ -128,6 +132,7 @@ TEST_CASE("ConfigBenchmarkValid::MeasureEntropy", "[config][benchmark]") {
 
 	REQUIRE(config.getFunctionType() == FunctionType::benchmark);
 	REQUIRE(config.getTestType() == TestType::noType);
+	REQUIRE(config.getTestParameters().empty());
 	REQUIRE(config.getBenchmarkType() == BenchmarkType::measureEntropy);
 	REQUIRE(config.getBenchmarkParameters().empty());
 	REQUIRE(config.getRawTestType().compare("") == 0);
@@ -152,6 +157,7 @@ TEST_CASE("ConfigBenchmarkValid::MeasureEntropyOneParameter",
 
 	REQUIRE(config.getFunctionType() == FunctionType::benchmark);
 	REQUIRE(config.getTestType() == TestType::noType);
+	REQUIRE(config.getTestParameters().empty());
 	REQUIRE(config.getBenchmarkType() == BenchmarkType::measureEntropy);
 	REQUIRE(config.getBenchmarkParameters()[0] == "5");
 	REQUIRE(config.getRawTestType().compare("") == 0);
@@ -176,6 +182,7 @@ TEST_CASE("ConfigBenchmarkValid::MeasureEntropyTwoParameters",
 
 	REQUIRE(config.getFunctionType() == FunctionType::benchmark);
 	REQUIRE(config.getTestType() == TestType::noType);
+	REQUIRE(config.getTestParameters().empty());
 	REQUIRE(config.getBenchmarkType() == BenchmarkType::measureEntropy);
 	REQUIRE(config.getBenchmarkParameters() ==
 			std::vector<std::string>({"10", "100"}));
@@ -201,6 +208,7 @@ TEST_CASE("ConfigBenchmarkInvalid::MeasureEntropyTooManyParameters",
 
 	REQUIRE(config.getFunctionType() == FunctionType::benchmark);
 	REQUIRE(config.getTestType() == TestType::noType);
+	REQUIRE(config.getTestParameters().empty());
 	REQUIRE(config.getBenchmarkType() == BenchmarkType::measureEntropy);
 	REQUIRE(config.getBenchmarkParameters() ==
 			std::vector<std::string>({"1", "2", "3"}));
@@ -226,6 +234,7 @@ TEST_CASE("ConfigBenchmarkInvalid::TimeToSeedTooManyParameters",
 
 	REQUIRE(config.getFunctionType() == FunctionType::benchmark);
 	REQUIRE(config.getTestType() == TestType::noType);
+	REQUIRE(config.getTestParameters().empty());
 	REQUIRE(config.getBenchmarkType() == BenchmarkType::timeToSeed);
 	REQUIRE(config.getBenchmarkParameters() == std::vector<std::string>({"1"}));
 	REQUIRE(config.getRawTestType().compare("") == 0);
@@ -248,6 +257,7 @@ TEST_CASE("ConfigBenchmarkInvalid::TimeToSeed", "[config][benchmark]") {
 
 	REQUIRE(config.getFunctionType() == FunctionType::benchmark);
 	REQUIRE(config.getTestType() == TestType::noType);
+	REQUIRE(config.getTestParameters().empty());
 	REQUIRE(config.getBenchmarkType() == BenchmarkType::timeToSeed);
 	REQUIRE(config.getBenchmarkParameters().empty());
 	REQUIRE(config.getRawTestType().compare("") == 0);
@@ -270,6 +280,7 @@ TEST_CASE("ConfigBenchmarkInvalid", "[config][benchmark]") {
 
 	REQUIRE(config.getFunctionType() == FunctionType::benchmark);
 	REQUIRE(config.getTestType() == TestType::noType);
+	REQUIRE(config.getTestParameters().empty());
 	REQUIRE(config.getBenchmarkType() == BenchmarkType::noType);
 	REQUIRE(config.getBenchmarkParameters().empty());
 	REQUIRE(config.getRawTestType().compare("") == 0);
@@ -372,6 +383,34 @@ TEST_CASE("ConfigTestsValid", "[config][test]") {
 	REQUIRE(callTest(configTestGetMinReseedSecs));
 }
 
+TEST_CASE("ConfigTestsValidWithParameter", "[config][test]") {
+	std::string configStringTestRandBytes =
+		"./esdm-client --t testRandBytes 64";
+	Config configTestRandBytes = (makeConfig(configStringTestRandBytes));
+	REQUIRE(callTest(configTestRandBytes));
+
+	std::string configStringTestRandBytesFull =
+		"./esdm-client --t testRandBytesFull 64";
+	Config configTestRandBytesFull =
+		(makeConfig(configStringTestRandBytesFull));
+	REQUIRE(callTest(configTestRandBytesFull));
+
+	std::string configStringTestRandBytesMin =
+		"./esdm-client --t testRandBytesMin 64";
+	Config configTestRandBytesMin = (makeConfig(configStringTestRandBytesMin));
+	REQUIRE(callTest(configTestRandBytesMin));
+
+	std::string configStringTestRandBytesPr =
+		"./esdm-client --t testRandBytesPr 64";
+	Config configTestRandBytesPr = (makeConfig(configStringTestRandBytesPr));
+	REQUIRE(callTest(configTestRandBytesPr));
+
+	std::string configStringTestWriteData =
+		"./esdm-client --t testWriteData abc";
+	Config configTestWriteData = (makeConfig(configStringTestWriteData));
+	REQUIRE(callTest(configTestWriteData));
+}
+
 TEST_CASE("ConfigTestsPrivValid", "[sudo][config][test]") {
 	std::string configStringTestPrivAddEntropy =
 		"./esdm-client --t testPrivAddEntropy";
@@ -405,6 +444,32 @@ TEST_CASE("ConfigTestsPrivValid", "[sudo][config][test]") {
 
 	std::string configStringTestPrivSetMinReseedSecs =
 		"./esdm-client --t testPrivSetMinReseedSecs";
+	Config configTestPrivSetMinReseedSecs =
+		(makeConfig(configStringTestPrivSetMinReseedSecs));
+	REQUIRE(callTest(configTestPrivSetMinReseedSecs));
+}
+
+TEST_CASE("ConfigTestsPrivValidWithParameter", "[sudo][config][test]") {
+	std::string configStringTestPrivAddEntropy =
+		"./esdm-client --t testPrivAddEntropy abc";
+	Config configTestPrivAddEntropy =
+		(makeConfig(configStringTestPrivAddEntropy));
+	REQUIRE(callTest(configTestPrivAddEntropy));
+
+	std::string configStringTestPrivAddToEntCnt =
+		"./esdm-client --t testPrivAddToEntCnt 1";
+	Config configTestPrivAddToEntCnt =
+		(makeConfig(configStringTestPrivAddToEntCnt));
+	REQUIRE(callTest(configTestPrivAddToEntCnt));
+
+	std::string configStringTestPrivSetWriteWakeupThresh =
+		"./esdm-client --t testPrivSetWriteWakeupThresh 1";
+	Config configTestPrivSetWriteWakeupThresh =
+		(makeConfig(configStringTestPrivSetWriteWakeupThresh));
+	REQUIRE(callTest(configTestPrivSetWriteWakeupThresh));
+
+	std::string configStringTestPrivSetMinReseedSecs =
+		"./esdm-client --t testPrivSetMinReseedSecs 30";
 	Config configTestPrivSetMinReseedSecs =
 		(makeConfig(configStringTestPrivSetMinReseedSecs));
 	REQUIRE(callTest(configTestPrivSetMinReseedSecs));
@@ -473,7 +538,9 @@ TEST_CASE("ConversionFunctions::BenchmarkType", "[config][misc]") {
 }
 
 TEST_CASE("WriterFunctions", "[config][writer]") {
-	std::string outFileName = "testOutput.json";
+	std::string outputDir = "./res/";
+	std::string outFileName = outputDir + "testOutput.json";
+	makeOutputDir(outputDir);
 	Json::Value root;
 	root["test"] = "test entry for this field";
 	Writer writer;
@@ -498,6 +565,7 @@ TEST_CASE("WriterFunctions::UseConfig", "[config][writer]") {
 	Config config = makeConfig(testConfigString);
 	REQUIRE(config.getFunctionType() == FunctionType::benchmark);
 	REQUIRE(config.getTestType() == TestType::noType);
+	REQUIRE(config.getTestParameters().empty());
 	REQUIRE(config.getBenchmarkType() == BenchmarkType::timeGetRandom);
 	REQUIRE(config.getBenchmarkParameters() ==
 			std::vector<std::string>({requestsString, "64"}));

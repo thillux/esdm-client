@@ -3,7 +3,6 @@
 #include <array>
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
-#include <chrono>
 #include <esdm/esdm_rpc_client.h>
 #include <filesystem>
 #include <iostream>
@@ -15,51 +14,36 @@
 #include "esdmRpcFuntions.hpp"
 #include "writer.hpp"
 
-using ms = std::chrono::milliseconds;
-using us = std::chrono::microseconds;
-using ns = std::chrono::nanoseconds;
-using Clock = std::chrono::high_resolution_clock;
-using measureEntropyOutput = std::vector<std::pair<int64_t, int>>;
-
-// todo: function int64_6 ->
-// Json::Value[duration1:unit1,time1],[duration2:unit2,time2]
-
-// Json::Value timeFieldFromNanoseconds(int64_t timeInNanoseconds) {
-// std::cout << timeInNanoseconds << "<---input\n";
-// ns nanoseconds = ns(timeInNanoseconds);
-// std::cout << nanoseconds.count() << "<---chrono ns\n";
-// us mikroseconds = std::chrono::duration<int64_t, ns>(nanoseconds);
-// std::cout << mikroseconds.count() << "<---chrono us\n";
-// us milliseconds = us(nanoseconds);
-// std::cout << milliseconds.count() << "<---chrono ms\n";
-// us seconds = us(nanoseconds);
-// std::cout << seconds.count() << "<---chrono s\n";
-// Json::Value root;
-// root["duration"];
-// return root;
+// // todorm: testFunction remove
+// void testTest(int64_t testInput = 1243567890123) {
+// 	Json::Value root;
+// 	timeFieldFromNanoseconds(testInput, root, "ns", "otherData");
+// 	timeFieldFromNanoseconds(testInput, root, "us", "otherData");
+// 	timeFieldFromNanoseconds(testInput, root, "ms", "otherData");
+// 	timeFieldFromNanoseconds(testInput, root, "s", "otherData");
+// 	Writer writer;
+// 	writer.writeOutputFile("testJsonOutput", root);
 // }
-
-// todorm: testFunction remove
-//  void testTest(int64_t testInput = 1243567890123){
-//  	Json::Value root;
-//  	root["duration"] = timeFieldFromNanoseconds(testInput);
-//  	Writer writer;
-//  	writer.writeOutputFile("testJsonOutput", root);
-//  }
 
 void getRandomNumbers(
 	std::optional<std::vector<std::pair<size_t, std::string>>>& returnVec,
 	std::optional<std::vector<int64_t>>& durationVec,
 	// std::optional<std::pair<std::vector<std::pair<size_t,
 	// std::string>>,std::vector<int64_t>>>& returnVec,
-	const int requestSize = 32) {
+	const int requestSize = 32, const std::string rpccFunction = "pr") {
 	size_t ret = 0;
 	std::vector<uint8_t> randBytes;
 	randBytes.resize(requestSize);
+	bool wantFunctionRandomBytesPr = rpccFunction == "pr";
+	assert(rpccFunction == "pr" || rpccFunction == "full");
 	std::chrono::time_point<std::chrono::system_clock> beforeRpcc =
 		Clock::now();
-	esdm_invoke(
-		esdm_rpcc_get_random_bytes_pr(randBytes.data(), randBytes.size()));
+	if (wantFunctionRandomBytesPr)
+		esdm_invoke(
+			esdm_rpcc_get_random_bytes_pr(randBytes.data(), randBytes.size()));
+	else
+		esdm_invoke(esdm_rpcc_get_random_bytes_full(randBytes.data(),
+													randBytes.size()));
 	std::chrono::time_point<std::chrono::system_clock> afterRpcc = Clock::now();
 	assert(ret > 0);
 	if (returnVec != std::nullopt && durationVec != std::nullopt) {
@@ -78,13 +62,13 @@ void getRandomNumbers(
 	}
 }
 
-// todo: measure rate
 int64_t benchmarkTimeGetRandom(
 	std::optional<std::vector<std::pair<size_t, std::string>>>& returnVec,
 	std::optional<std::vector<int64_t>>& durationVec,
 	// std::optional<std::pair<std::vector<std::pair<size_t,
 	// std::string>>,std::vector<int64_t>>>& returnVec,
-	const size_t requests = 1, const int requestSize = 32) {
+	const size_t requests = 1, const int requestSize = 32,
+	const std::string rpccFunction = "pr") {
 	esdm_rpcc_init_unpriv_service(NULL);
 	std::chrono::time_point<std::chrono::system_clock> start = Clock::now();
 
@@ -93,7 +77,7 @@ int64_t benchmarkTimeGetRandom(
 	// assertion of returned values: assert(ret > 0) in getRandomNumbers()
 	assert(requestSize > 0);
 	for (size_t i = 0; i < requests; i++) {
-		getRandomNumbers(returnVec, durationVec, requestSize);
+		getRandomNumbers(returnVec, durationVec, requestSize, rpccFunction);
 	}
 	std::chrono::time_point<std::chrono::system_clock> end = Clock::now();
 
@@ -230,30 +214,33 @@ bool startTimeGetRandom(const std::string outputFileName, Config config) {
 	std::vector<std::string> parameters = config.getBenchmarkParameters();
 	bool saveRandomOutput = config.getSave();
 	int64_t outputDuration = 0;
-	if (parameters.size() > 2) {
+	if (parameters.size() > 3) {
 		std::cout << "to many arguments for the timeGetRandom benchmark\n. "
-					 "Expected at most 2 "
+					 "Expected at most 3 "
 					 "Arguments:\n"
 				  << "(1) requests\n"
-				  << "(2) requestSize\n";
+				  << "(2) requestSize\n"
+				  << "(3) rpccFunction: 'pr' or 'full'\n";
 		return false;
 	}
 
-	// todo maybe compose rpccRetVec and individualDurationRetVec into an
-	// std::optional<std::pair<....>>
+	std::string rpccFunction = "pr";
 	std::optional<std::vector<std::pair<size_t, std::string>>> rpccRetVec =
 		std::vector<std::pair<size_t, std::string>>();
-	// std::optional<std::pair<std::vector<std::pair<size_t,
-	// std::string>>,std::vector<int64_t>>> rpccRetVec =
-	// std::pair<std::vector<std::pair<size_t,
-	// std::string>>,std::vector<int64_t>>();
 	std::optional<std::vector<int64_t>> individualDurationRetVec =
 		std::vector<int64_t>();
 	if (!saveRandomOutput) {
 		rpccRetVec = std::nullopt;
 		individualDurationRetVec = std::nullopt;
 	}
-	if (parameters.size() == 2) {
+	if (parameters.size() == 3) {
+		rpccFunction = parameters[2];
+		if (rpccFunction != "pr" && rpccFunction != "full")
+			return false;
+		outputDuration = benchmarkTimeGetRandom(
+			rpccRetVec, individualDurationRetVec, std::stoi(parameters[0]),
+			std::stoi(parameters[1]), rpccFunction);
+	} else if (parameters.size() == 2) {
 		outputDuration = benchmarkTimeGetRandom(
 			rpccRetVec, individualDurationRetVec, std::stoi(parameters[0]),
 			std::stoi(parameters[1]));
@@ -268,30 +255,38 @@ bool startTimeGetRandom(const std::string outputFileName, Config config) {
 
 	// save result
 	Json::Value data;
-	data["info"] = "Structure of entries in the field 'output':\n"
-				   "duration:total duration for all requests\n"
-				   "returnedValues: (numberOfReturnedBytes, returnedBytes)\n";
-	Json::Value durationEntry;
-	durationEntry["unit"] = "nanoseconds";
-	durationEntry["time"] = outputDuration;
-	// todo: durationEntry["timeInSeconds"] = std::chrono::duration_cast<
-	data["duration"] = durationEntry;
+	data["info"] =
+		"Structure of entries in the field 'output':\n"
+		"duration:total duration for all requests\n"
+		"returnedValues: (numberOfReturnedBytes, returnedBytes)\n"
+		"rate: bytes per seconds (uses the total duration and "
+		"totalBytesReturned\n"
+		"esdm_rpcc_function: esdm_rpcc function name invoked in the benchmark";
+	timeFieldFromNanoseconds(outputDuration, data, "ns", "duration");
+	timeFieldFromNanoseconds(outputDuration, data, "ms", "duration");
 
+	int64_t totalBytesReturned = 0;
 	assert(rpccRetVec->size() == individualDurationRetVec->size());
 	for (size_t i = 0; i < rpccRetVec->size(); i++) {
 		Json::Value returnedValues;
-		// returnedValues["numberOfReturnedBytes"] = i.first.first;
-		// returnedValues["returnedBytes"] = i.first.second;
-		// returnedValues["invokationDuration"] = i.second;
-		returnedValues["numberOfReturnedBytes"] = (*rpccRetVec)[i].first;
+		int numberOfReturnedBytes = (*rpccRetVec)[i].first;
+		returnedValues["numberOfReturnedBytes"] = numberOfReturnedBytes;
+		totalBytesReturned += numberOfReturnedBytes;
 		returnedValues["returnedBytes"] = (*rpccRetVec)[i].second;
-		returnedValues["invokationDuration"]["unit"] = "nanoseconds";
-		returnedValues["invokationDuration"]["time"] =
-			(*individualDurationRetVec)[i];
-
+		int64_t individualDuration = (*individualDurationRetVec)[i];
+		timeFieldFromNanoseconds(individualDuration, returnedValues, "ns",
+								 "invokationDuration");
+		timeFieldFromNanoseconds(individualDuration, returnedValues, "ms",
+								 "invokationDuration");
 		data["returnedValues"].append(returnedValues);
 	}
+	data["totalBytesReturned"] = totalBytesReturned;
 
+	data["rate"]["bytesPerSeconds"] =
+		totalBytesReturned * (((double)(1000000000) / outputDuration));
+	data["esdm_rpcc_function"] = rpccFunction == "pr"
+									 ? "esdm_rpcc_get_random_bytes_pr"
+									 : "esdm_rpcc_get_random_bytes_full";
 	Writer writer;
 	return writer.writeOutputFile(outputFileName, data, config);
 }
@@ -364,8 +359,8 @@ bool startTimeToSeed(const std::string outputFileName, Config config) {
 				   "Time until ESDM was Fully Seeded\n"
 				   "measurement: (timeUntilSeeded) \n";
 
-	data["measurement"]["unit"] = "nanoseconds";
-	data["measurement"]["time"] = outputTimeToSeed;
+	timeFieldFromNanoseconds(outputTimeToSeed, data, "ns", "measurement");
+	timeFieldFromNanoseconds(outputTimeToSeed, data, "ms", "measurement");
 
 	Writer writer;
 	return writer.writeOutputFile(outputFileName, data, config);
@@ -378,6 +373,8 @@ const std::string availableBenchmarkFunctions =
 				  "\t -Parameters:\n"
 				  "\t\t requests :\t Number of times the function is called\n"
 				  "\t\t requestSize:\tAmount of requested random bytes\n"
+				  "\t\t rpccFunction:\t whether to use esdm_rpcc_get_random_bytes_pr or ..._random_bytes_full"
+				  "\t\t\t as the benchmarked function\n"
 				  "measureEntropy : Read the entropy status of the esdm\n"
 				  "\t -Parameters:\n"
 				  "\t\t observationTime:\tFor how long the entropy status is measured."
@@ -415,12 +412,7 @@ bool callBenchmark(Config config) {
 	}
 
 	const std::string outputDir = config.getOutputDirName();
-	bool mkdir;
-	mkdir = std::filesystem::create_directory(outputDir);
-	if (mkdir) {
-		std::cout << "Create output directory:" << outputDir << "\n";
-	}
-
+	makeOutputDir(outputDir);
 	bool successfullExecution = true;
 	const int repetitions = config.getRepetitions();
 	assert(repetitions > 0);
@@ -447,42 +439,140 @@ bool callBenchmark(Config config) {
 }
 
 const std::string availableTestFunctions =
+	// clang-format off
 	"Available test functions:\n"
-	"testRandBytes : call esdm_rpcc_get_random_bytes\n"
-	"testRandBytesFull : call esdm_rpcc_get_random_bytes_full\n"
-	"testRandBytesMin : call esdm_rpcc_get_random_bytes_min\n"
-	"testRandBytesPr : call esdm_rpcc_get_random_bytes_pr\n"
-	"testWriteData : call esdm_rpcc_write_data\n"
-	"testStatus     : call esdm_rpcc_status\n"
-	"testSeed       : call esdm_rpcc_get_seed\n"
-	"testEntCnt : call esdm_rpcc_get_ent_cnt\n"
-	"testGetPoolsize : call esdm_rpcc_poolsize\n"
-	"testGetWriteWakeupThresh     : call esdm_rpcc_get_write_wakeup_thresh\n"
-	"testPrivSetWriteWakeupThresh : call esdm_rpcc_set_write_wakeup_thresh\n"
-	"testGetMinReseedSecs : call esdm_rpcc_get_min_reseed_secs\n"
-	"testPrivSetMinReseedSecs : call esdm_rpcc_set_min_reseed_secs\n"
-	"testPrivAddEntropy   : call esdm_rpcc_rnd_add_entropy\n"
-	"testPrivAddToEntCnt : call esdm_rpcc_rnd_add_to_ent_cnt\n"
-	"testPrivClearPool : call esdm_rpcc_rnd_clear_pool\n"
-	"testPrivReseedCrng : call esdm_rpcc_rnd_reseed_crng\n";
+	"FUNCTION_NAME        MAX_NUMBER_OF_ARGS   DESCRIPTION"
+	"testRandBytes                (1) size_t        : call esdm_rpcc_get_random_bytes\n"
+	"testRandBytesFull            (1) size_t        : call esdm_rpcc_get_random_bytes_full\n"
+	"testRandBytesMin             (1) size_t        : call esdm_rpcc_get_random_bytes_min\n"
+	"testRandBytesPr              (1) size_t        : call esdm_rpcc_get_random_bytes_pr\n"
+	"testWriteData                (1) std::string   : call esdm_rpcc_write_data\n"
+	"testStatus                   (0)               : call esdm_rpcc_status\n"
+	"testSeed                     (0)               : call esdm_rpcc_get_seed\n"
+	"testEntCnt                   (0)               : call esdm_rpcc_get_ent_cnt\n"
+	"testPrivAddEntropy           (1) std::string   : call esdm_rpcc_rnd_add_entropy\n"
+	"testPrivAddToEntCnt          (1) unsigned int  : call esdm_rpcc_rnd_add_to_ent_cnt\n"
+	"testPrivClearPool            (0)               : call esdm_rpcc_rnd_clear_pool\n"
+	"testPrivReseedCrng           (0)               : call esdm_rpcc_rnd_reseed_crng\n"
+	"testGetPoolsize              (0)               : call esdm_rpcc_poolsize\n"
+	"testGetWriteWakeupThresh     (0)               : call esdm_rpcc_get_write_wakeup_thresh\n"
+	"testPrivSetWriteWakeupThresh (1) unsigned int  : call esdm_rpcc_set_write_wakeup_thresh\n"
+	"testGetMinReseedSecs         (0)               : call esdm_rpcc_get_min_reseed_secs\n"
+	"testPrivSetMinReseedSecs     (1) unsigned int  : call esdm_rpcc_set_min_reseed_secs\n";
+// clang-format on
+
+int testMaximalExpectedParameters(TestType type) {
+	// clang-format off
+	//if at most 1 parameter
+	if(
+	type == TestType::testRandBytes ||
+	type == TestType::testRandBytesFull ||
+	type == TestType::testRandBytesMin ||
+	type == TestType::testRandBytesPr ||
+	type == TestType::testWriteData ||
+	type == TestType::testPrivAddEntropy ||
+	type == TestType::testPrivAddToEntCnt ||
+	type == TestType::testPrivSetWriteWakeupThresh ||
+	type == TestType::testPrivSetMinReseedSecs)
+		return 1;
+	//at most 0 parameters
+	else if(
+	type == TestType::testStatus ||
+	type == TestType::testSeed ||
+	type == TestType::testEntCnt ||
+	type == TestType::testPrivClearPool ||
+	type == TestType::testPrivReseedCrng ||
+	type == TestType::testGetPoolsize ||
+	type == TestType::testGetWriteWakeupThresh ||
+	type == TestType::testGetMinReseedSecs)
+		return 0;
+	else{
+		assert(type == TestType::noType || type == TestType::unknownType);
+		return 0;
+	}
+	//clang-format on
+}
 
 bool callTest(Config config) {
 	TestType testType = config.getTestType();
+	size_t maximalParametersForTest = testMaximalExpectedParameters(testType);
+	if(maximalParametersForTest < config.getTestParameters().size() && testType != TestType::noType && testType != TestType::unknownType){
+		std::cout << "Got " << config.getTestParameters().size() << " parameter(s): ";
+		config.printStringVector(config.getTestParameters());
+		std::cout << "Expected (at most) " << maximalParametersForTest
+		<< "for test '" << testTypeToString(testType)
+		<< "'.\n";
+		return false;
+	};
+
+	bool additionalTestParameters = config.getTestParameters().size() != 0;
+	std::string firstParameterString;
+	int firstParameterInt = 0;
+	if(additionalTestParameters){
+		if(testType == TestType::testWriteData || testType == TestType::testPrivAddEntropy)
+			firstParameterString = config.getTestParameters()[0];
+		else
+			firstParameterInt = stoi(config.getTestParameters()[0]);
+	}
+		
 	switch (testType) {
 	case TestType::testRandBytes:
-		testRandBytes();
+		if(additionalTestParameters)
+			testRandBytes(firstParameterInt);
+		else
+			testRandBytes();
 		return true;
 	case TestType::testRandBytesFull:
-		testRandBytesFull();
+		if(additionalTestParameters)
+			testRandBytesFull(firstParameterInt);
+		else
+			testRandBytesFull();
 		return true;
 	case TestType::testRandBytesMin:
-		testRandBytesMin();
+		if(additionalTestParameters)
+			testRandBytesMin(firstParameterInt);
+		else
+			testRandBytesMin();
 		return true;
 	case TestType::testRandBytesPr:
-		testRandBytesPr();
+		if(additionalTestParameters)
+			testRandBytesPr(firstParameterInt);
+		else
+			testRandBytesPr();
 		return true;
 	case TestType::testWriteData:
-		testWriteData();
+		if(additionalTestParameters)
+			testWriteData(firstParameterString);
+		else
+			testWriteData();
+		return true;
+	case TestType::testPrivAddEntropy:
+		if(additionalTestParameters){
+			testPrivAddEntropy(firstParameterString);
+		}
+		else
+			testPrivAddEntropy();
+		return true;
+	case TestType::testPrivAddToEntCnt:
+		if(additionalTestParameters)
+			testPrivAddToEntCnt(firstParameterInt);
+		else
+			testPrivAddToEntCnt();
+		return true;
+	case TestType::testPrivSetWriteWakeupThresh:
+		if(additionalTestParameters)
+			testPrivSetWriteWakeupThresh(firstParameterInt);
+		else
+			testPrivSetWriteWakeupThresh();
+		return true;
+	case TestType::testGetMinReseedSecs:
+		testGetMinReseedSecs();
+		return true;
+	case TestType::testPrivSetMinReseedSecs:
+		if(additionalTestParameters)
+			testPrivSetMinReseedSecs(firstParameterInt);
+		else
+			testPrivSetMinReseedSecs();
 		return true;
 	case TestType::testStatus:
 		testStatus();
@@ -493,32 +583,17 @@ bool callTest(Config config) {
 	case TestType::testEntCnt:
 		testEntCnt();
 		return true;
-	case TestType::testGetPoolsize:
-		testGetPoolsize();
-		return true;
-	case TestType::testGetWriteWakeupThresh:
-		testGetWriteWakeupThresh();
-		return true;
-	case TestType::testPrivSetWriteWakeupThresh:
-		testPrivSetWriteWakeupThresh();
-		return true;
-	case TestType::testGetMinReseedSecs:
-		testGetMinReseedSecs();
-		return true;
-	case TestType::testPrivSetMinReseedSecs:
-		testPrivSetMinReseedSecs();
-		return true;
-	case TestType::testPrivAddEntropy:
-		testPrivAddEntropy();
-		return true;
-	case TestType::testPrivAddToEntCnt:
-		testPrivAddToEntCnt();
-		return true;
 	case TestType::testPrivClearPool:
 		testPrivClearPool();
 		return true;
 	case TestType::testPrivReseedCrng:
 		testPrivReseedCrng();
+		return true;
+	case TestType::testGetPoolsize:
+		testGetPoolsize();
+		return true;
+	case TestType::testGetWriteWakeupThresh:
+		testGetWriteWakeupThresh();
 		return true;
 	case TestType::unknownType:
 		std::cout << "unknown test with name:'" << config.getRawTestType()
@@ -540,7 +615,7 @@ void createConfigFromArgs(int argc, char* argv[], Config& config) {
 	bool showStatus;
 	std::vector<std::string> benchmarkOptions;
 	int repetitions;
-	std::string test;
+	std::vector<std::string> test;
 	std::string outputFile;
 	std::string outputDir;
 	bool save;
@@ -552,7 +627,7 @@ void createConfigFromArgs(int argc, char* argv[], Config& config) {
 			("help,h", po::bool_switch(&help)->default_value(false), "Help screen")
 			("benchmark,b", po::value<std::vector<std::string>>(&benchmarkOptions)->multitoken()->zero_tokens()->composing(), "Benchmark")
 			("repetitions,r", po::value<int>(&repetitions)->default_value(1), "Repetitions of choosen benchmark")
-			("test,t", po::value<std::string>(&test), "call test functions")
+			("test,t", po::value<std::vector<std::string>>(&test)->multitoken()->zero_tokens()->composing(), "call test functions")
 			("Status,S", po::bool_switch(&showStatus)->default_value(false), "show ESDM status")
 			("outputFile,o", po::value<std::string>(&outputFile)->default_value("data.bench"), "Suffix of output file. Name of output: 'benchmarkType'.'repetition'.'suffix'")
 			("outputDir,d", po::value<std::string>(&outputDir)->default_value("./res/"), "Result directory")
@@ -568,7 +643,9 @@ void createConfigFromArgs(int argc, char* argv[], Config& config) {
 		BenchmarkType benchmarkType;
 		std::string rawBenchmarkType;
 		TestType testType;
+		std::string rawTestType;
 		std::vector<std::string> benchmarkParameters;
+		std::vector<std::string> testParameters;
 		if (vm.count("benchmark")) {
 			functionType = FunctionType::benchmark;
 			testType = TestType::noType;
@@ -582,13 +659,18 @@ void createConfigFromArgs(int argc, char* argv[], Config& config) {
 		} else if (vm.count("test")) {
 			functionType = FunctionType::test;
 			benchmarkType = BenchmarkType::noType;
-			testType = stringToTestType(test);
+			if (test.size() > 0) {
+				rawTestType = test[0];
+				testParameters = test;
+				testParameters.erase(testParameters.begin());
+			}
+			testType = stringToTestType(rawTestType);
 		} else if (help) {
 			std::cout << desc << "\n";
 		}
-		config = Config(functionType, testType, benchmarkType,
+		config = Config(functionType, testType, testParameters, benchmarkType,
 						benchmarkParameters, repetitions, outputFile, outputDir,
-						help, showStatus, save, test, rawBenchmarkType);
+						help, showStatus, save, rawTestType, rawBenchmarkType);
 		config.printConfig(true);
 		return;
 	} catch (const po::error& ex) {

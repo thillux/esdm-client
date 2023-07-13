@@ -10,8 +10,8 @@ int main(int argc, char* argv[]) {
 	for (int i = 0; i < argc; i++)
 		std::cout << "i(" << i << "):" << argv[i] << " ";
 
-	Config config(FunctionType::noType, TestType::noType, BenchmarkType::noType,
-				  {}, 0, "", "", false, false, false);
+	Config config(FunctionType::noType, TestType::noType, {},
+				  BenchmarkType::noType, {}, 0, "", "", false, false, false);
 	createConfigFromArgs(argc, argv, config);
 
 	bool exit = true;

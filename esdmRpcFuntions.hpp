@@ -77,12 +77,14 @@ void testRandBytesPr(size_t requestedNumberOfBytes = 32) {
 
 // todo arguments for write data
 // void testWriteData(std::vector<uint8_t> data = std::vector<uint8_t>({})) {
-void testWriteData() {
+void testWriteData(std::string inputString = "") {
 	size_t ret = 0;
 	esdm_rpcc_init_unpriv_service(NULL);
-
-	std::array<uint8_t, 32> dataToWrite;
-	memset(dataToWrite.data(), 0, dataToWrite.size());
+	// we cannot pass an empty string by the user or as the default to the
+	// esdm_rpcc_write_data function
+	if (inputString == "")
+		inputString = "0";
+	std::vector<uint8_t> dataToWrite(inputString.begin(), inputString.end());
 	esdm_invoke(esdm_rpcc_write_data(dataToWrite.data(), dataToWrite.size()));
 
 	assert(ret == 0);
@@ -146,12 +148,16 @@ void testEntCnt() {
 	esdm_rpcc_fini_unpriv_service();
 }
 
-void testPrivAddEntropy() {
+void testPrivAddEntropy(std::string inputString = "") {
 	ssize_t ret = 0;
 
+	std::cout << "test InputString:" << inputString << "\n";
 	esdm_rpcc_init_priv_service(NULL);
-
-	std::array<uint8_t, 32> randBytes;
+	// we cannot pass an empty string by the user or as the default to the
+	// esdm_rpcc_rnd_add_entropy function
+	if (inputString == "")
+		inputString = "0";
+	std::vector<uint8_t> randBytes(inputString.begin(), inputString.end());
 	std::cout << "Warning: this is cyclic entropy feeding for testing purposes "
 				 "and should never be done in production!"
 			  << std::endl;
@@ -260,6 +266,6 @@ void testPrivSetMinReseedSecs(unsigned int newMinReseedSecs = 60) {
 		std::cout << "ret =" << ret << " . Have you tried running as sudo?\n";
 	}
 	assert(ret == 0);
-	std::cout << "min reseed secs set to: " << newMinReseedSecs << "\n";
+	std::cout << "min reseed secondss set to: " << newMinReseedSecs << "\n";
 	esdm_rpcc_fini_priv_service();
 }
