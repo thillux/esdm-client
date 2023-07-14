@@ -58,15 +58,12 @@ void getRandomNumbers(
 		auto duration = afterRpcc - beforeRpcc;
 		ns durationRpcc = std::chrono::duration_cast<ns>(duration);
 		durationVec->push_back(durationRpcc.count());
-		// returnVec->second.push_back(durationRpcc);
 	}
 }
 
 int64_t benchmarkTimeGetRandom(
 	std::optional<std::vector<std::pair<size_t, std::string>>>& returnVec,
 	std::optional<std::vector<int64_t>>& durationVec,
-	// std::optional<std::pair<std::vector<std::pair<size_t,
-	// std::string>>,std::vector<int64_t>>>& returnVec,
 	const size_t requests = 1, const int requestSize = 32,
 	const std::string rpccFunction = "pr") {
 	esdm_rpcc_init_unpriv_service(NULL);
