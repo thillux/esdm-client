@@ -22,6 +22,17 @@ files = os.listdir(workingDir)
 #box-plot rates <-- all runs
 #ratio sum(invokationDuration)/totalDuration
 #chisquared of output bytes?
+
+def makeGenericPlot(xValues, yValues, xLabel="", yLabel="", title="", filename="defaultPlotName", format="pdf"):
+    fig, ax = plt.subplots(figsize=(15,5))
+    ax.plot(xValues, yValues, marker = ".", markerfacecolor="black")
+    ax.set_xlabel(xLabel)
+    ax.set_ylabel(yLabel)
+    ax.set_xlim(0, max(xValues))
+    # ax.set_ylim(0, max(yValues))
+
+    fig.savefig(filename, format=format)
+
 def tailLatencyPlot(latencies, outputFileName, title = "Cumulative Distribution Function of 'invokationDurations' for 1 run", description = ""):
     x = np.sort(latencies)
     y = np.linspace(1/len(latencies), 1, len(latencies))
@@ -30,8 +41,8 @@ def tailLatencyPlot(latencies, outputFileName, title = "Cumulative Distribution 
     fig, ax = plt.subplots()
     ax.set_xlim(0, max(x))
     ax.set_ylim(0, 1)
-    ax.plot(x, y)
-    ax.ticklabel_format( style='scientific')
+    ax.plot(x, y, marker=".", linestyle = "None")
+    ax.ticklabel_format( style="scientific")
     ax.set_xlabel(xLabel)
     ax.set_ylabel(yLabel)
     ax.grid(axis="both")
@@ -104,7 +115,9 @@ def chisquaredOfRawOutputBytes(outputBytesAllRepetitions, expectedTotalBytes, fl
     print(f"result of chisquared test statistic:{res.statistic}")
     print(f"result of chisquared test pvalue:{res.pvalue}")
 
-    # print("exiting chisquared")
+    with open("testOutput", "wb") as outputHandle:
+        for element in individualIntList:
+            outputHandle.write(element.to_bytes(1, byteorder="big"))
 
 def timeGetRandomEval(outputFiles):
     firstIteration = True
@@ -171,10 +184,53 @@ def timeGetRandomEval(outputFiles):
         firstIteration = False
     # print(outputBytesAllRepetitions)
     # print(rateList)
-    xLabelString =  f"timeGetRandom@{len(outputFiles)}requests and {requests}requests"
-    makeBoxPlot(rateList, "testMakeBoxPlotRate", xLabelString, "rate in bytes per second")
-    makeBoxPlot(ratioList, "testMakeBoxPlotRatio", xLabelString, "ratio: (sum of invokation duration)/(total duration) of one repetition")
+    xLabelString =  f"timeGetRandom@{len(outputFiles)}repetitions and {requests}requests"
+    makeBoxPlot(rateList, "timeGetRandomBoxPlotRate", xLabelString, "rate in bytes per second")
+    makeBoxPlot(ratioList, "timeGetRandomBoxPlotRatio", xLabelString, "ratio: (sum of invokation duration)/(total duration) of one repetition")
     chisquaredOfRawOutputBytes(outputBytesAllRepetitions, totalBytes)
+
+def timeToSeedEval(outputFiles):
+    timeList = []
+    repetitions = len(outputFiles)
+    for output in outputFiles:
+        with open(workingDir + output , "r") as fileHandle:
+            fileAsString = fileHandle.read()
+            jsonOutput = json.loads(fileAsString)
+            timeToSeedThisRepetition = int(jsonOutput["data"]["measurement"][timeUnitResolution])
+            # print(f"{timeToSeedThisRepetition}<----")
+            timeList.append(timeToSeedThisRepetition)
+            fileHandle.close()
+    # print(timeList)
+    makeBoxPlot(timeList, "timeToSeedBoxPlot")
+
+
+def measureEntropyEval(outputFiles):
+    repetitions = len(outputFiles)
+    currentRepetition = 0
+    for output in outputFiles:
+        entropyLevelList = []
+        timePointList = []
+        startTime = 0
+        startTimeSet = False
+        with open(workingDir + output , "r") as fileHandle:
+            fileAsString = fileHandle.read()
+            jsonOutput = json.loads(fileAsString)
+            # print(jsonOutput)
+            jsonMeasurements = jsonOutput["data"]["measurements"]
+            numberOfMeasurements = len(jsonMeasurements)
+            # print(numberOfMeasurements)
+            for entry in jsonMeasurements:
+                entropyLevel = entry["entropyLevel"]
+                timePoint = entry["timestamp"]
+                if not startTimeSet:
+                    startTimeSet = True
+                    startTime = timePoint
+                timePoint = timePoint - startTime
+                entropyLevelList.append(entropyLevel)
+                timePointList.append(timePoint)
+            fileHandle.close()
+        makeGenericPlot(timePointList, entropyLevelList, "benchmark-time in nanoseconds", "entropy level in bit")
+
     
 
 for benchmark in benchmarkType:
@@ -182,6 +238,10 @@ for benchmark in benchmarkType:
     #todorm: remove following line. it is just easier to examine debug output if files are sorted this way
     outputFiles = natsort.natsorted(outputFiles)
     # print(f"{benchmark} files:\n{outputFiles}")
+    outputFilesEmpty = len(outputFiles) == 0 
+    if outputFilesEmpty:
+        continue
+
     #assumption is that the repetition number is the first string after '{benchmarkType}.' in the file name
     highestRepetitionNumber = int(outputFiles[-1].split(".")[1])
     # print(f"###highestRepetitionNumber: {highestRepetitionNumber}\n")
@@ -194,5 +254,11 @@ for benchmark in benchmarkType:
         )
     # print(f"{benchmark}--->:{countOutputFiles}\n")
 
-    if benchmark == "timeGetRandom" :
+    if benchmark == "timeGetRandom":
         timeGetRandomEval(outputFiles)
+
+    if benchmark == "timeToSeed":
+        timeToSeedEval(outputFiles)
+
+    if benchmark == "measureEntropy":
+        measureEntropyEval(outputFiles)
