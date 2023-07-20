@@ -177,6 +177,7 @@ int64_t timeTillSeeded() {
 	esdm_rpcc_init_unpriv_service(NULL);
 	char buffer[2048];
 	assert(ret == 0);
+	//todo first loop
 
 	// std::array<uint8_t, 64> randomOutputBuffer;
 	// esdm_invoke(esdm_rpcc_get_random_bytes_pr(randomOutputBuffer.data(),
@@ -387,7 +388,7 @@ std::string createOutFileName(Config config, int runningNumberRepetition) {
 		typeStr = benchmarkTypeToString(config.getBenchmarkType());
 	else if (config.getFunctionType() == FunctionType::test)
 		typeStr = functionTypeToString(config.getFunctionType());
-	std::string outputFileName = config.getOutputDirName() + typeStr + "." +
+	std::string outputFileName = config.getOutputDirName() + "/" + typeStr + "." +
 								 std::to_string(runningNumberRepetition) + "." +
 								 config.getOutputFileName();
 	return outputFileName;
@@ -636,13 +637,13 @@ void createConfigFromArgs(int argc, char* argv[], Config& config) {
 		po::store(po::parse_command_line(argc, argv, desc), vm);
 		po::notify(vm);
 
-		FunctionType functionType;
-		BenchmarkType benchmarkType;
-		std::string rawBenchmarkType;
-		TestType testType;
-		std::string rawTestType;
-		std::vector<std::string> benchmarkParameters;
-		std::vector<std::string> testParameters;
+		FunctionType functionType = FunctionType::noType;
+		BenchmarkType benchmarkType = BenchmarkType::noType;
+		std::string rawBenchmarkType = "";
+		TestType testType = TestType::noType;
+		std::string rawTestType = "";
+		std::vector<std::string> benchmarkParameters = {};
+		std::vector<std::string> testParameters = {};
 		if (vm.count("benchmark")) {
 			functionType = FunctionType::benchmark;
 			testType = TestType::noType;
@@ -668,7 +669,7 @@ void createConfigFromArgs(int argc, char* argv[], Config& config) {
 		config = Config(functionType, testType, testParameters, benchmarkType,
 						benchmarkParameters, repetitions, outputFile, outputDir,
 						help, showStatus, save, rawTestType, rawBenchmarkType);
-		config.printConfig(true);
+		// config.printConfig(true);
 		return;
 	} catch (const po::error& ex) {
 		std::cerr << ex.what() << '\n';

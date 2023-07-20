@@ -5,10 +5,10 @@
 #include <catch2/catch.hpp>
 
 int main(int argc, char* argv[]) {
-	// todorm: remove test output
-	std::cout << "c:" << argc << "\n";
-	for (int i = 0; i < argc; i++)
-		std::cout << "i(" << i << "):" << argv[i] << " ";
+	// // todorm: remove test output
+	// std::cout << "c:" << argc << "\n";
+	// for (int i = 0; i < argc; i++)
+	// 	std::cout << "i(" << i << "):" << argv[i] << " ";
 
 	Config config(FunctionType::noType, TestType::noType, {},
 				  BenchmarkType::noType, {}, 0, "", "", false, false, false);
