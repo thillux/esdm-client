@@ -5,12 +5,24 @@ import math
 import json
 import natsort
 from scipy.stats import chisquare
+import sys
 
 import os
 
-workingDir = "./build/res/"
+defaultWorkingDir = "./build/res/"
+allBenchmarkTypes = ["measureEntropy", "timeGetRandom", "timeToSeed"]
+defaultOutDir = "./benchmarkOut"
 
-benchmarkType = ["measureEntropy", "timeGetRandom", "timeToSeed"]
+workingDir = defaultWorkingDir
+benchmarkType = allBenchmarkTypes
+outDir = defaultOutDir
+if(len(sys.argv) > 1):
+    workingDir = sys.argv[1]
+if(len(sys.argv) > 2):
+     outDir= sys.argv[2]
+if(len(sys.argv) > 3):
+    benchmarkType = sys.argv[3]
+
 benchmarkDataString = "data.bench.json"
 timeUnitResolution = "nanoseconds"
 
@@ -33,7 +45,7 @@ def makeGenericPlot(xValues, yValues, xLabel="", yLabel="", title="", filename="
 
     fig.savefig(filename, format=format)
 
-def tailLatencyPlot(latencies, outputFileName, title = "Cumulative Distribution Function of 'invokationDurations' for 1 run", description = ""):
+def tailLatencyPlot(latencies, outputFileName, title = "Cumulative Distribution Function of 'invokationDurations' for 1 run", description = "", percentile = 0.99):
     x = np.sort(latencies)
     y = np.linspace(1/len(latencies), 1, len(latencies))
     xLabel = f"Latencies in {timeUnitResolution}"
@@ -41,12 +53,12 @@ def tailLatencyPlot(latencies, outputFileName, title = "Cumulative Distribution 
     fig, ax = plt.subplots()
     ax.set_xlim(0, max(x))
     ax.set_ylim(0, 1)
-    ax.plot(x, y, marker=".", linestyle = "None")
+    # ax.plot(x, y, marker=".", linestyle = "None")
+    ax.plot(x, y)
     ax.ticklabel_format( style="scientific")
     ax.set_xlabel(xLabel)
     ax.set_ylabel(yLabel)
     ax.grid(axis="both")
-    percentile = 0.95
     xPercentileValue = x[np.where(y > percentile)][0]
     yPercentileValue = y[np.where(y >= percentile)][0]
     # print(f"xPercentileValue:{xPercentileValue}<<------")
@@ -58,6 +70,22 @@ def tailLatencyPlot(latencies, outputFileName, title = "Cumulative Distribution 
     ax.set_title(title)
     fig.text(0.5, 0, description, ha="center")
     fig.savefig(outputFileName, format="pdf")
+
+    median = np.median(latencies)
+    mean = np.mean(latencies)
+    quartile75 = np.percentile(latencies, 75)
+    quartile25 = np.percentile(latencies, 25)
+
+    textFileName = f"{outputFileName}.desc"
+    with open(textFileName, "w") as textFileHandle:
+        textFileHandle.write(f"max_value\t{max(x)}\n")
+        textFileHandle.write(f"min_value\t{min(x)}\n")
+        textFileHandle.write(f"percentile({percentile})\tat\t{xPercentileValue}\n")
+        textFileHandle.write(f"median\t{median}\n")
+        textFileHandle.write(f"mean\t{mean}\n")
+        textFileHandle.write(f"quartile75\t{quartile75}\n")
+        textFileHandle.write(f"quartile25\t{quartile25}\n")
+
 
 def makeBoxPlot(data, outputFileName, xLabel="", yLabel="", totalYScale = False):
     fig, ax = plt.subplots()
@@ -74,9 +102,24 @@ def makeBoxPlot(data, outputFileName, xLabel="", yLabel="", totalYScale = False)
         xTicks = []
     ax.set_xticks(xTicks)
     fig.savefig(outputFileName, format="pdf")
+    median = np.median(data)
+    mean = np.mean(data)
+    quartile75 = np.percentile(data, 75)
+    quartile25 = np.percentile(data, 25)
+    iqr = quartile75 - quartile25
+    whiskerH = quartile75 + 1.5 * iqr
+    whiskerL = quartile25 - 1.5 * iqr
+    fileName = outputFileName + ".desc"
+    with open(fileName, "w") as fileHandle:
+        fileHandle.write(f"quartile75:{quartile75}\n")
+        fileHandle.write(f"quartile25:{quartile25}\n")
+        fileHandle.write(f"iqr:{iqr}\n")
+        fileHandle.write(f"median:{median}\n")
+        fileHandle.write(f"mean:{mean}\n")
+        fileHandle.write(f"whiskerH:{whiskerH}\n")
+        fileHandle.write(f"whiskerL:{whiskerL}\n")
 
-
-def chisquaredOfRawOutputBytes(outputBytesAllRepetitions, expectedTotalBytes, flattenList = True):
+def chisquaredOfRawOutputBytes(outputBytesAllRepetitions, expectedTotalBytes, fileName="chisquaredOutput",flattenList = True):
     repetitions = len(outputBytesAllRepetitions)
     # print(f"repetitions:{repetitions}")
     requests = min([len(x) for x in outputBytesAllRepetitions])
@@ -114,6 +157,10 @@ def chisquaredOfRawOutputBytes(outputBytesAllRepetitions, expectedTotalBytes, fl
     res = chisquare(f_obs=actualFrequencies, f_exp=expectedFrequencies)
     print(f"result of chisquared test statistic:{res.statistic}")
     print(f"result of chisquared test pvalue:{res.pvalue}")
+
+    with open(fileName, "w") as fileHandle:
+        fileHandle.write(f"result of chisquared test statistic:{res.statistic}\n")
+        fileHandle.write(f"result of chisquared test pvalue:{res.pvalue}\n")        
 
     with open("testOutput", "wb") as outputHandle:
         for element in individualIntList:
@@ -185,9 +232,10 @@ def timeGetRandomEval(outputFiles):
     # print(outputBytesAllRepetitions)
     # print(rateList)
     xLabelString =  f"timeGetRandom@{len(outputFiles)}repetitions and {requests}requests"
-    makeBoxPlot(rateList, "timeGetRandomBoxPlotRate", xLabelString, "rate in bytes per second")
-    makeBoxPlot(ratioList, "timeGetRandomBoxPlotRatio", xLabelString, "ratio: (sum of invokation duration)/(total duration) of one repetition")
-    chisquaredOfRawOutputBytes(outputBytesAllRepetitions, totalBytes)
+    if highestRepetitionNumber > 0:
+        makeBoxPlot(rateList, "timeGetRandomBoxPlotRate", xLabelString, "rate in bytes per second", True)
+        makeBoxPlot(ratioList, "timeGetRandomBoxPlotRatio", xLabelString, "ratio: (sum of invokation duration)/(total duration) of one repetition", True)
+    chisquaredOfRawOutputBytes(outputBytesAllRepetitions, totalBytes, "timeGetRandomChiSquared")
 
 def timeToSeedEval(outputFiles):
     timeList = []
@@ -243,8 +291,7 @@ for benchmark in benchmarkType:
         continue
 
     #assumption is that the repetition number is the first string after '{benchmarkType}.' in the file name
-    highestRepetitionNumber = int(outputFiles[-1].split(".")[1])
-    # print(f"###highestRepetitionNumber: {highestRepetitionNumber}\n")
+    highestRepetitionNumber = int(outputFiles[-1].split(f"{benchmark}.")[1])
     countOutputFiles = len(outputFiles)
     if highestRepetitionNumber + 1 != countOutputFiles :
         print(
