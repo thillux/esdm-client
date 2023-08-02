@@ -3,6 +3,7 @@
 #include <fstream>
 #include <json/json.h>
 #include <string>
+#include "miscFunctions.hpp"
 
 using s = std::chrono::seconds;
 using ms = std::chrono::milliseconds;
@@ -79,6 +80,9 @@ enum class TestType {
 	testPrivSetWriteWakeupThresh,
 	testGetMinReseedSecs,
 	testPrivSetMinReseedSecs,
+#ifdef JENT_KERNEL
+	testJentKernel,
+#endif
 	noType,
 	unknownType,
 };
@@ -118,6 +122,10 @@ TestType stringToTestType(std::string testString) {
 		return TestType::testGetMinReseedSecs;
 	else if (testString == "testPrivSetMinReseedSecs")
 		return TestType::testPrivSetMinReseedSecs;
+#ifdef JENT_KERNEL
+	else if (testString == "testJentKernel")
+		return TestType::testJentKernel;
+#endif
 	else if (testString == "" || testString == "noType")
 		return TestType::noType;
 	else
@@ -159,6 +167,10 @@ std::string testTypeToString(TestType testType) {
 		return "testGetMinReseedSecs";
 	else if (testType == TestType::testPrivSetMinReseedSecs)
 		return "testPrivSetMinReseedSecs";
+#ifdef JENT_KERNEL
+	else if (testType == TestType::testJentKernel)
+		return "testJentKernel";
+#endif
 	else if (testType == TestType::noType)
 		return "noType";
 	else

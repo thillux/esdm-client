@@ -1,14 +1,14 @@
 {
     "nixpkgs": {
-        "branch": "esdm-upstream",
+        "branch": "esdm-botan",
         "description": "Nix Packages collection & NixOS",
         "homepage": "",
         "owner": "OrichterSec",
         "repo": "nixpkgs",
-        "rev": "25b131776ef0d569dc0b8da844c205ca891d4f00",
-        "sha256": "0xs54v2j1kmsjmmf2a0a0h4s5f7xa7nw537izvc10mf3v0b6g1zw",
+        "rev": "d4a112c1bcd1ded5c7d2d63628daa7087f6e4565",
+        "sha256": "0xmh38hkyqq704i0vfvfmci1257pcn8p9xb10g6fbyf26xw61iqa",
         "type": "tarball",
-        "url": "https://github.com/OrichterSec/nixpkgs/archive/25b131776ef0d569dc0b8da844c205ca891d4f00.tar.gz",
+        "url": "https://github.com/OrichterSec/nixpkgs/archive/d4a112c1bcd1ded5c7d2d63628daa7087f6e4565.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }

@@ -456,7 +456,8 @@ const std::string availableTestFunctions =
 	"testGetWriteWakeupThresh     (0)               : call esdm_rpcc_get_write_wakeup_thresh\n"
 	"testPrivSetWriteWakeupThresh (1) unsigned int  : call esdm_rpcc_set_write_wakeup_thresh\n"
 	"testGetMinReseedSecs         (0)               : call esdm_rpcc_get_min_reseed_secs\n"
-	"testPrivSetMinReseedSecs     (1) unsigned int  : call esdm_rpcc_set_min_reseed_secs\n";
+	"testPrivSetMinReseedSecs     (1) unsigned int  : call esdm_rpcc_set_min_reseed_secs\n"
+	"testJentKernel               (1) unsidned int  : call kcapi_rng_generate\n";
 // clang-format on
 
 int testMaximalExpectedParameters(TestType type) {
@@ -471,7 +472,11 @@ int testMaximalExpectedParameters(TestType type) {
 	type == TestType::testPrivAddEntropy ||
 	type == TestType::testPrivAddToEntCnt ||
 	type == TestType::testPrivSetWriteWakeupThresh ||
-	type == TestType::testPrivSetMinReseedSecs)
+	type == TestType::testPrivSetMinReseedSecs
+#ifdef JENT_KERNEL
+	 || type == TestType::testJentKernel
+#endif
+	)
 		return 1;
 	//at most 0 parameters
 	else if(
@@ -572,6 +577,14 @@ bool callTest(Config config) {
 		else
 			testPrivSetMinReseedSecs();
 		return true;
+#ifdef JENT_KERNEL
+	case TestType::testJentKernel:
+		if(additionalTestParameters)
+			kcapiTest(firstParameterInt);
+		else
+			kcapiTest();
+		return true;
+#endif
 	case TestType::testStatus:
 		testStatus();
 		return true;

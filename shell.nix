@@ -4,7 +4,7 @@ let
   sources = import nix/sources.nix;
   pkgs = import sources.nixpkgs { };
 in pkgs.mkShell {
-  buildInputs = with pkgs; [ esdm protobufc boost jsoncpp catch2 lcov gcovr];
+  buildInputs = with pkgs; [ esdm protobufc boost jsoncpp catch2 lcov gcovr libkcapi];
   nativeBuildInputs = with pkgs; [ meson ninja pkgconfig cmake ];
 
    # https://github.com/NixOS/nixpkgs/issues/86131
