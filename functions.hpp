@@ -46,6 +46,10 @@ void getRandomNumbers(
 													randBytes.size()));
 	std::chrono::time_point<std::chrono::system_clock> afterRpcc = Clock::now();
 	assert(ret > 0);
+	// std::string testFile = "testFile";
+	// std::ofstream os;
+	// os.open(testFile, std::ios::binary|std::ios::app);
+	// os.write(reinterpret_cast<const char*>(randBytes.data()), randBytes.size());
 	if (returnVec != std::nullopt && durationVec != std::nullopt) {
 		std::string returnString;
 		returnString.append("0x");
@@ -439,25 +443,25 @@ bool callBenchmark(Config config) {
 const std::string availableTestFunctions =
 	// clang-format off
 	"Available test functions:\n"
-	"FUNCTION_NAME        MAX_NUMBER_OF_ARGS   DESCRIPTION"
-	"testRandBytes                (1) size_t        : call esdm_rpcc_get_random_bytes\n"
-	"testRandBytesFull            (1) size_t        : call esdm_rpcc_get_random_bytes_full\n"
-	"testRandBytesMin             (1) size_t        : call esdm_rpcc_get_random_bytes_min\n"
-	"testRandBytesPr              (1) size_t        : call esdm_rpcc_get_random_bytes_pr\n"
-	"testWriteData                (1) std::string   : call esdm_rpcc_write_data\n"
-	"testStatus                   (0)               : call esdm_rpcc_status\n"
-	"testSeed                     (0)               : call esdm_rpcc_get_seed\n"
-	"testEntCnt                   (0)               : call esdm_rpcc_get_ent_cnt\n"
-	"testPrivAddEntropy           (1) std::string   : call esdm_rpcc_rnd_add_entropy\n"
-	"testPrivAddToEntCnt          (1) unsigned int  : call esdm_rpcc_rnd_add_to_ent_cnt\n"
-	"testPrivClearPool            (0)               : call esdm_rpcc_rnd_clear_pool\n"
-	"testPrivReseedCrng           (0)               : call esdm_rpcc_rnd_reseed_crng\n"
-	"testGetPoolsize              (0)               : call esdm_rpcc_poolsize\n"
-	"testGetWriteWakeupThresh     (0)               : call esdm_rpcc_get_write_wakeup_thresh\n"
-	"testPrivSetWriteWakeupThresh (1) unsigned int  : call esdm_rpcc_set_write_wakeup_thresh\n"
-	"testGetMinReseedSecs         (0)               : call esdm_rpcc_get_min_reseed_secs\n"
-	"testPrivSetMinReseedSecs     (1) unsigned int  : call esdm_rpcc_set_min_reseed_secs\n"
-	"testJentKernel               (1) unsidned int  : call kcapi_rng_generate\n";
+	"FUNCTION_NAME        MAX_NUMBER_OF_ARGS                 DESCRIPTION\n"
+	"testRandBytes                (2) size_t outfileName : call esdm_rpcc_get_random_bytes\n"
+	"testRandBytesFull            (2) size_t outfileName : call esdm_rpcc_get_random_bytes_full\n"
+	"testRandBytesMin             (2) size_t outfileName : call esdm_rpcc_get_random_bytes_min\n"
+	"testRandBytesPr              (2) size_t outfileName : call esdm_rpcc_get_random_bytes_pr\n"
+	"testWriteData                (1) std::string        : call esdm_rpcc_write_data\n"
+	"testStatus                   (0)                    : call esdm_rpcc_status\n"
+	"testSeed                     (0)                    : call esdm_rpcc_get_seed\n"
+	"testEntCnt                   (0)                    : call esdm_rpcc_get_ent_cnt\n"
+	"testPrivAddEntropy           (1) std::string        : call esdm_rpcc_rnd_add_entropy\n"
+	"testPrivAddToEntCnt          (1) unsigned int       : call esdm_rpcc_rnd_add_to_ent_cnt\n"
+	"testPrivClearPool            (0)                    : call esdm_rpcc_rnd_clear_pool\n"
+	"testPrivReseedCrng           (0)                    : call esdm_rpcc_rnd_reseed_crng\n"
+	"testGetPoolsize              (0)                    : call esdm_rpcc_poolsize\n"
+	"testGetWriteWakeupThresh     (0)                    : call esdm_rpcc_get_write_wakeup_thresh\n"
+	"testPrivSetWriteWakeupThresh (1) unsigned int       : call esdm_rpcc_set_write_wakeup_thresh\n"
+	"testGetMinReseedSecs         (0)                    : call esdm_rpcc_get_min_reseed_secs\n"
+	"testPrivSetMinReseedSecs     (1) unsigned int       : call esdm_rpcc_set_min_reseed_secs\n"
+	"testJentKernel               (1) unsidned int       : call kcapi_rng_generate\n";
 // clang-format on
 
 int testMaximalExpectedParameters(TestType type) {
@@ -467,7 +471,10 @@ int testMaximalExpectedParameters(TestType type) {
 	type == TestType::testRandBytes ||
 	type == TestType::testRandBytesFull ||
 	type == TestType::testRandBytesMin ||
-	type == TestType::testRandBytesPr ||
+	type == TestType::testRandBytesPr
+	)
+		return 2;
+	else if(
 	type == TestType::testWriteData ||
 	type == TestType::testPrivAddEntropy ||
 	type == TestType::testPrivAddToEntCnt ||
@@ -509,37 +516,66 @@ bool callTest(Config config) {
 	};
 
 	bool additionalTestParameters = config.getTestParameters().size() != 0;
+	size_t additionalTestParametersCount = config.getTestParameters().size();
 	std::string firstParameterString;
+	std::string secondParameterString;
 	int firstParameterInt = 0;
+	std::string thirdParameterString;
+	int repetitions = config.getRepetitions();
+	bool moreRepetitions = false;
 	if(additionalTestParameters){
 		if(testType == TestType::testWriteData || testType == TestType::testPrivAddEntropy)
 			firstParameterString = config.getTestParameters()[0];
 		else
 			firstParameterInt = stoi(config.getTestParameters()[0]);
+			if(additionalTestParametersCount >= 2)
+				secondParameterString = config.getTestParameters()[1];
+			if(repetitions != 1)
+				moreRepetitions = true;
 	}
 		
 	switch (testType) {
 	case TestType::testRandBytes:
 		if(additionalTestParameters)
-			testRandBytes(firstParameterInt);
+			if(moreRepetitions)
+				testRandBytes(firstParameterInt, secondParameterString, repetitions);
+			else if(additionalTestParametersCount == 2)
+				testRandBytes(firstParameterInt, secondParameterString);
+			else
+				testRandBytes(firstParameterInt);
 		else
 			testRandBytes();
 		return true;
 	case TestType::testRandBytesFull:
 		if(additionalTestParameters)
-			testRandBytesFull(firstParameterInt);
+			if(moreRepetitions)
+				testRandBytesFull(firstParameterInt, secondParameterString, repetitions);
+			else if(additionalTestParametersCount == 2)
+				testRandBytesFull(firstParameterInt, secondParameterString);
+			else
+				testRandBytesFull(firstParameterInt);
 		else
 			testRandBytesFull();
 		return true;
 	case TestType::testRandBytesMin:
 		if(additionalTestParameters)
-			testRandBytesMin(firstParameterInt);
+			if(moreRepetitions)
+				testRandBytesMin(firstParameterInt, secondParameterString, repetitions);
+			else if(additionalTestParametersCount == 2)
+				testRandBytesMin(firstParameterInt, secondParameterString);
+			else
+				testRandBytesMin(firstParameterInt);
 		else
 			testRandBytesMin();
 		return true;
 	case TestType::testRandBytesPr:
 		if(additionalTestParameters)
-			testRandBytesPr(firstParameterInt);
+			if(moreRepetitions)
+				testRandBytesPr(firstParameterInt, secondParameterString, repetitions);
+			else if(additionalTestParametersCount == 2)
+				testRandBytesPr(firstParameterInt, secondParameterString);
+			else
+				testRandBytesPr(firstParameterInt);
 		else
 			testRandBytesPr();
 		return true;

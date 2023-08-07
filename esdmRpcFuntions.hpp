@@ -2,76 +2,111 @@
 #pragma once
 #include <boost/format.hpp>
 #include <esdm/esdm_rpc_client.h>
+#include <fstream>
 
 // todo: possibility to set testFunction parameters through commandline
-void testRandBytes(size_t requestedNumberOfBytes = 32) {
+void testRandBytes(size_t requestedNumberOfBytes = 32, std::string outfileName = "", int repetitions = 1) {
 	size_t ret = 0;
 	esdm_rpcc_init_unpriv_service(NULL);
 	std::vector<uint8_t> randBytes;
 	randBytes.resize(requestedNumberOfBytes);
-	esdm_invoke(esdm_rpcc_get_random_bytes(randBytes.data(), randBytes.size()));
-	assert(ret == randBytes.size());
-	std::cout << "0x";
-	for (size_t i = 0; i < randBytes.size(); i++) {
-		std::cout << boost::format("%02x") % static_cast<int>(randBytes[i]);
-	}
-	std::cout << "\n";
+	for(int i = 0; i < repetitions; i++){
+		esdm_invoke(esdm_rpcc_get_random_bytes(randBytes.data(), randBytes.size()));
 
+		assert(ret == randBytes.size());
+		if(outfileName != ""){
+			//append randBytes to file
+			std::ofstream os;
+			os.open(outfileName, std::ios::binary|std::ios::app);
+			os.write(reinterpret_cast<const char*>(randBytes.data()), randBytes.size());
+		}else{
+			std::cout << "0x";
+			for (size_t i = 0; i < randBytes.size(); i++) {
+				std::cout << boost::format("%02x") % static_cast<int>(randBytes[i]);
+			}
+			std::cout << "\n";
+		}
+	}
 	esdm_rpcc_fini_unpriv_service();
 }
 
-void testRandBytesFull(size_t requestedNumberOfBytes = 32) {
+void testRandBytesFull(size_t requestedNumberOfBytes = 32, std::string outfileName = "", int repetitions = 1) {
 	size_t ret = 0;
 	esdm_rpcc_init_unpriv_service(NULL);
 	std::vector<uint8_t> randBytes;
 	randBytes.resize(requestedNumberOfBytes);
-	esdm_invoke(
-		esdm_rpcc_get_random_bytes_full(randBytes.data(), randBytes.size()));
+	for(int i = 0; i < repetitions; i++){
+		esdm_invoke(
+			esdm_rpcc_get_random_bytes_full(randBytes.data(), randBytes.size()));
 
-	assert(ret == randBytes.size());
-	std::cout << "0x";
-	for (size_t i = 0; i < randBytes.size(); i++) {
-		std::cout << boost::format("%02x") % static_cast<int>(randBytes[i]);
+		assert(ret == randBytes.size());
+		if(outfileName != ""){
+			//append randBytes to file
+			std::ofstream os;
+			os.open(outfileName, std::ios::binary|std::ios::app);
+			os.write(reinterpret_cast<const char*>(randBytes.data()), randBytes.size());
+		}else{
+			std::cout << "0x";
+			for (size_t i = 0; i < randBytes.size(); i++) {
+				std::cout << boost::format("%02x") % static_cast<int>(randBytes[i]);
+			}
+			std::cout << "\n";
+		}
 	}
-	std::cout << "\n";
-
 	esdm_rpcc_fini_unpriv_service();
 }
 
-void testRandBytesMin(size_t requestedNumberOfBytes = 32) {
+void testRandBytesMin(size_t requestedNumberOfBytes = 32, std::string outfileName = "", int repetitions = 1) {
 	size_t ret = 0;
 	esdm_rpcc_init_unpriv_service(NULL);
 	std::vector<uint8_t> randBytes;
 	randBytes.resize(requestedNumberOfBytes);
-	esdm_invoke(
-		esdm_rpcc_get_random_bytes_min(randBytes.data(), randBytes.size()));
+	for(int i = 0; i < repetitions; i++){
+		esdm_invoke(
+			esdm_rpcc_get_random_bytes_min(randBytes.data(), randBytes.size()));
 
-	assert(ret == randBytes.size());
-	std::cout << "0x";
-	for (size_t i = 0; i < randBytes.size(); i++) {
-		std::cout << boost::format("%02x") % static_cast<int>(randBytes[i]);
+		assert(ret == randBytes.size());
+		if(outfileName != ""){
+			//append randBytes to file
+			std::ofstream os;
+			os.open(outfileName, std::ios::binary|std::ios::app);
+			os.write(reinterpret_cast<const char*>(randBytes.data()), randBytes.size());
+		}else{
+			std::cout << "0x";
+			for (size_t i = 0; i < randBytes.size(); i++) {
+				std::cout << boost::format("%02x") % static_cast<int>(randBytes[i]);
+			}
+			std::cout << "\n";
+		}
 	}
-	std::cout << "\n";
-
 	esdm_rpcc_fini_unpriv_service();
 }
 
-void testRandBytesPr(size_t requestedNumberOfBytes = 32) {
-	ssize_t ret = 0;
+void testRandBytesPr(size_t requestedNumberOfBytes = 32, std::string outfileName = "", int repetitions = 1) {
+	size_t ret = 0;
 
 	esdm_rpcc_init_unpriv_service(NULL);
 
 	std::vector<uint8_t> randBytes;
 	randBytes.resize(requestedNumberOfBytes);
-	esdm_invoke(
-		esdm_rpcc_get_random_bytes_pr(randBytes.data(), randBytes.size()));
+	for(int i = 0; i < repetitions; i++){
+		esdm_invoke(
+			esdm_rpcc_get_random_bytes_pr(randBytes.data(), randBytes.size()));
 
-	std::cout << "0x";
-	for (size_t i = 0; i < randBytes.size(); ++i) {
-		std::cout << boost::format("%02x") % static_cast<int>(randBytes[i]);
+		assert(ret == randBytes.size());
+		if(outfileName != ""){
+			//append randBytes to file
+			std::ofstream os;
+			os.open(outfileName, std::ios::binary|std::ios::app);
+			os.write(reinterpret_cast<const char*>(randBytes.data()), randBytes.size());
+		}else{
+			std::cout << "0x";
+			for (size_t i = 0; i < randBytes.size(); ++i) {
+				std::cout << boost::format("%02x") % static_cast<int>(randBytes[i]);
+			}
+			std::cout << std::endl;
+		}
 	}
-	std::cout << std::endl;
-
 	esdm_rpcc_fini_unpriv_service();
 }
 

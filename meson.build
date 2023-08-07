@@ -62,5 +62,5 @@ catch = executable('esdm-test',
   install: true
 )
 
-#test('testMesonCoverage', catch, args : ['~[sudo]'])
-#test('testMesonCoverage', catch, args : ['[config]'])
+test('testMesonCoverage', catch, args : ['~[sudo]'])
+test('testMesonCoverage', catch, args : ['[config]'])
